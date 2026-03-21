@@ -3,12 +3,15 @@
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { useConvexAuth, usePaginatedQuery } from "convex/react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import SiteHeader from "@/components/SiteHeader";
 
-type Idea = Doc<"refinementSessions">;
+type Idea = Doc<"refinementSessions"> & {
+  thumbnailUrl?: string | null;
+};
 
 function formatIdeaStatus(status: Idea["status"]) {
   switch (status) {
@@ -120,6 +123,18 @@ function IdeasList() {
         {results.map((idea) => (
           <article key={idea._id} className="craft-card p-5 sm:p-6">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              {idea.thumbnailUrl ? (
+                <div className="relative h-32 w-full overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)] lg:h-36 lg:w-48 lg:flex-none">
+                  <Image
+                    src={idea.thumbnailUrl}
+                    alt={`${idea.title} thumbnail`}
+                    fill
+                    unoptimized
+                    sizes="(max-width: 1024px) 100vw, 192px"
+                    className="object-cover"
+                  />
+                </div>
+              ) : null}
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span

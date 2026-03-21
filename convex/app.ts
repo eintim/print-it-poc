@@ -198,12 +198,41 @@ export const listIdeas = query({
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
-
-    return await ctx.db
+    const paginated = await ctx.db
       .query("refinementSessions")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .paginate(args.paginationOpts);
+
+    const pageWithThumbnails = await Promise.all(
+      paginated.page.map(async (session) => {
+        const latestModel = (
+          await ctx.db
+            .query("generatedModels")
+            .withIndex("by_session", (q) => q.eq("sessionId", session._id))
+            .order("desc")
+            .take(1)
+        )[0];
+
+        const latestJob = (
+          await ctx.db
+            .query("generationJobs")
+            .withIndex("by_session", (q) => q.eq("sessionId", session._id))
+            .order("desc")
+            .take(1)
+        )[0];
+
+        return {
+          ...session,
+          thumbnailUrl: latestModel?.thumbnailUrl ?? latestJob?.thumbnailUrl ?? null,
+        };
+      }),
+    );
+
+    return {
+      ...paginated,
+      page: pageWithThumbnails,
+    };
   },
 });
 
