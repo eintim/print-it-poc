@@ -1,10 +1,11 @@
 "use client";
 
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useConvexAuth } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { useConvexAuth, useQuery } from "convex/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const NAV_ITEMS_AUTHENTICATED = [
   { href: "/", label: "Home" },
@@ -30,10 +31,20 @@ export default function SiteHeader() {
   const router = useRouter();
   const { signOut } = useAuthActions();
   const { isAuthenticated } = useConvexAuth();
+  const adminStatus = useQuery(api.admin.adminStatus);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  const navItems = isAuthenticated ? NAV_ITEMS_AUTHENTICATED : NAV_ITEMS_GUEST;
+  const navItems = useMemo(() => {
+    if (!isAuthenticated) return NAV_ITEMS_GUEST;
+    const items = [...NAV_ITEMS_AUTHENTICATED];
+    if (adminStatus?.isAdmin) {
+      const aboutIdx = items.findIndex((i) => i.href === "/about");
+      const idx = aboutIdx >= 0 ? aboutIdx : items.length;
+      items.splice(idx, 0, { href: "/admin", label: "Admin" });
+    }
+    return items;
+  }, [isAuthenticated, adminStatus?.isAdmin]);
   const ideasHref = "/ideas";
   const ordersHref = "/orders";
   const createHref = "/create";
@@ -130,6 +141,14 @@ export default function SiteHeader() {
               >
                 Create
               </Link>
+              {adminStatus?.isAdmin ? (
+                <Link
+                  href="/admin"
+                  className="block rounded-lg px-3 py-2 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--cream)]"
+                >
+                  Admin · all models
+                </Link>
+              ) : null}
               <div className="my-0.5 h-px bg-[var(--line)]" />
               <button
                 type="button"

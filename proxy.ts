@@ -11,6 +11,7 @@ const isProtectedRoute = createRouteMatcher([
   "/orders",
   "/about",
   "/server",
+  "/admin",
 ]);
 
 // Next.js 16+: use this file only — do not add `middleware.ts` (conflicts + wrong export shape).
