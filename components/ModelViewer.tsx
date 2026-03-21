@@ -163,8 +163,19 @@ export default function ModelViewer({
         scene.add(floor);
 
         const maxDim = Math.max(size.x, size.y, size.z, 1);
-        camera.position.set(maxDim * 1.8, maxDim * 1.2, maxDim * 1.8);
-        controls.target.set(0, size.y * 0.15, 0);
+        const placedCenter = placedBox.getCenter(new THREE.Vector3());
+        // Orbit around the placed model's true center (not the base). The old target
+        // (0, size.y * 0.15, 0) sat near the floor while geometry extends upward, which
+        // pushed the mesh low in the viewport.
+        const prevTarget = new THREE.Vector3(0, size.y * 0.15, 0);
+        const prevCam = new THREE.Vector3(
+          maxDim * 1.8,
+          maxDim * 1.2,
+          maxDim * 1.8,
+        );
+        const camOffset = prevCam.clone().sub(prevTarget);
+        controls.target.copy(placedCenter);
+        camera.position.copy(placedCenter).add(camOffset);
         controls.update();
 
         if (layout === "workspace") {
