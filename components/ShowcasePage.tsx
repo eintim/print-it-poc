@@ -8,7 +8,31 @@ import { useEffect, useRef, useState } from "react";
 
 const ModelViewer = dynamic(() => import("@/components/ModelViewer"), { ssr: false });
 
-const SHOWCASE_ITEMS = [
+type ShowcaseItem =
+  | {
+      id: string;
+      prompt: string;
+      tag: string;
+      rotation: string;
+      accent: string;
+      note: string;
+      glb?: string;
+      thumbnail?: string;
+    }
+  | {
+      id: string;
+      prompt: null;
+      sketchLines: true;
+      sketchLabel: string;
+      tag: string;
+      rotation: string;
+      accent: string;
+      note: string;
+      glb?: string;
+      thumbnail?: string;
+    };
+
+const SHOWCASE_ITEMS: ShowcaseItem[] = [
   {
     id: "dragon-planter",
     prompt: "A tiny dragon curled around a succulent planter, with scales that double as drainage holes",
@@ -150,14 +174,13 @@ function ShowcaseCard({
   item,
   index,
 }: {
-  item: (typeof SHOWCASE_ITEMS)[number];
+  item: ShowcaseItem;
   index: number;
 }) {
   const { ref, visible } = useInView(0.1);
-  const isSketch = item.sketchLines;
-  const imageAlt = item.prompt
-    ? `Idea: ${item.prompt}`
-    : `Idea: ${item.sketchLabel ?? "sketch"}`;
+  const isSketch = item.prompt === null;
+  const imageAlt =
+    item.prompt != null ? `Idea: ${item.prompt}` : `Idea: ${item.sketchLabel}`;
 
   return (
     <div
