@@ -455,7 +455,7 @@ export default function WorkspaceClient({
     <main className="flex h-screen flex-col overflow-hidden bg-transparent text-[var(--foreground)]">
       <SiteHeader />
 
-      <div className="mx-auto flex min-h-0 max-w-6xl flex-1 flex-col gap-4 overflow-hidden px-4 py-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-0 w-full max-w-[1320px] flex-1 flex-col gap-4 overflow-hidden px-4 py-4 sm:px-6 lg:px-8">
         {/* Compact workspace bar */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-1 rounded-full bg-[var(--panel)] p-1">
@@ -684,8 +684,8 @@ export default function WorkspaceClient({
 
         {/* ── Model / Customize screen ── */}
         {!isWorkspaceLoading && activeScreen === "model" ? (
-          <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto xl:grid-cols-[minmax(0,1fr)_300px]">
-            <div className="overflow-hidden rounded-2xl bg-white shadow-[var(--shadow)]">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto xl:flex-row xl:overflow-hidden">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-[var(--shadow)]">
               <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
                 <div className="flex items-center gap-3">
                   <h2 className="font-serif text-xl font-semibold text-[var(--foreground)]">
@@ -709,16 +709,18 @@ export default function WorkspaceClient({
                 ) : null}
               </div>
 
-              <ModelViewer
+              <div className="min-h-0 flex-1">
+                <ModelViewer
                 modelUrl={previewModelUrl}
                 onBoundsChange={setViewerBounds}
                 isGenerating={isGeneratingPreview}
                 loadingLabel={previewLoadingLabel}
                 progress={jobProgress?.progress ?? null}
               />
+              </div>
             </div>
 
-            <aside className="flex flex-col gap-3">
+            <aside className="flex w-full shrink-0 flex-col gap-3 xl:w-[280px]">
               {/* Size selector */}
               <div className="rounded-2xl bg-white p-4 shadow-[0_8px_24px_rgba(93,64,43,0.06)]">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
@@ -805,24 +807,33 @@ export default function WorkspaceClient({
 
         {/* ── Order screen ── */}
         {!isWorkspaceLoading && activeScreen === "order" ? (
-          <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto xl:grid-cols-[minmax(0,1fr)_280px]">
-            <div>
-              {activeModel ? (
-                <PrintOrderForm
-                  disabled={false}
-                  defaultEmail={workspace?.viewer ?? ""}
-                  size={selectedSize}
-                  estimatedPriceUsd={estimatedPriceUsd}
-                  onSubmit={handleOrderSubmit}
-                />
-              ) : (
-                <div className="rounded-2xl border border-[var(--line)]/30 bg-white p-6 text-sm text-[var(--muted)] shadow-[var(--shadow)]">
-                  Generate a model first, then come back here to submit the final order details.
-                </div>
-              )}
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto xl:flex-row xl:overflow-hidden">
+            <div className="flex min-h-[320px] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-[var(--shadow)] xl:min-h-0">
+              <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                <h2 className="font-serif text-xl font-semibold text-[var(--foreground)]">
+                  Place order
+                </h2>
+              </div>
+
+              <div className="flex min-h-0 flex-1 flex-col px-5 pb-5">
+                {activeModel ? (
+                  <PrintOrderForm
+                    embedded
+                    disabled={false}
+                    defaultEmail={workspace?.viewer ?? ""}
+                    size={selectedSize}
+                    estimatedPriceUsd={estimatedPriceUsd}
+                    onSubmit={handleOrderSubmit}
+                  />
+                ) : (
+                  <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border border-[var(--line)]/30 bg-[var(--cream)] px-6 py-10 text-center text-sm text-[var(--muted)]">
+                    Generate a model first, then come back here to submit the final order details.
+                  </div>
+                )}
+              </div>
             </div>
 
-            <aside className="flex flex-col gap-3">
+            <aside className="flex w-full shrink-0 flex-col gap-3 xl:w-[280px]">
               <div className="rounded-2xl bg-white p-4 shadow-[0_8px_24px_rgba(93,64,43,0.06)]">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
                   Order summary

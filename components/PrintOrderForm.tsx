@@ -13,11 +13,14 @@ export default function PrintOrderForm({
   size,
   estimatedPriceUsd,
   onSubmit,
+  embedded = false,
 }: {
   disabled: boolean;
   defaultEmail: string;
   size: ModelSizeId;
   estimatedPriceUsd: number;
+  /** When true, no outer card — parent provides the white shell (workspace order step). */
+  embedded?: boolean;
   onSubmit: (payload: {
     size: ModelSizeId;
     targetHeightMm: number;
@@ -36,9 +39,13 @@ export default function PrintOrderForm({
 
   const selectedSize = getModelSizeOption(size);
 
+  const formClassName = embedded
+    ? "flex h-full min-h-0 flex-col gap-4"
+    : "space-y-5 rounded-2xl bg-white p-6 shadow-[var(--shadow)]";
+
   return (
     <form
-      className="space-y-5 rounded-2xl bg-white p-6 shadow-[var(--shadow)]"
+      className={formClassName}
       onSubmit={(event) => {
         event.preventDefault();
         setSubmitting(true);
@@ -63,16 +70,18 @@ export default function PrintOrderForm({
           });
       }}
     >
-      <div className="space-y-2">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--accent)]">
-          Final order
-        </p>
-        <h3 className="font-serif text-3xl font-semibold text-[var(--foreground)]">
-          Share your delivery details
-        </h3>
-      </div>
+      {!embedded ? (
+        <div className="space-y-2">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--accent)]">
+            Final order
+          </p>
+          <h3 className="font-serif text-3xl font-semibold text-[var(--foreground)]">
+            Share your delivery details
+          </h3>
+        </div>
+      ) : null}
 
-      <div className="grid gap-4 rounded-xl bg-[var(--panel)] p-4 md:grid-cols-2">
+      <div className="grid shrink-0 gap-4 rounded-xl bg-[var(--panel)] p-4 md:grid-cols-2">
         <div>
           <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">
             Selected size
@@ -92,7 +101,7 @@ export default function PrintOrderForm({
       </div>
 
       <input
-        className="studio-input rounded-xl"
+        className="studio-input shrink-0 rounded-xl"
         placeholder="Contact name"
         value={contactName}
         onChange={(event) => setContactName(event.target.value)}
@@ -100,7 +109,7 @@ export default function PrintOrderForm({
         disabled={disabled || submitting}
       />
       <input
-        className="studio-input rounded-xl"
+        className="studio-input shrink-0 rounded-xl"
         placeholder="Email"
         type="email"
         value={email || defaultEmail}
@@ -109,7 +118,11 @@ export default function PrintOrderForm({
         disabled={disabled || submitting}
       />
       <textarea
-        className="studio-input min-h-28 rounded-xl"
+        className={
+          embedded
+            ? "studio-input min-h-0 flex-1 basis-0 resize-none rounded-xl"
+            : "studio-input min-h-28 rounded-xl"
+        }
         placeholder="Shipping address"
         value={shippingAddress}
         onChange={(event) => setShippingAddress(event.target.value)}
@@ -117,7 +130,11 @@ export default function PrintOrderForm({
         disabled={disabled || submitting}
       />
       <textarea
-        className="studio-input min-h-24 rounded-xl"
+        className={
+          embedded
+            ? "studio-input min-h-20 shrink-0 resize-none rounded-xl"
+            : "studio-input min-h-24 rounded-xl"
+        }
         placeholder="Optional notes"
         value={notes}
         onChange={(event) => setNotes(event.target.value)}
@@ -126,11 +143,13 @@ export default function PrintOrderForm({
       <button
         type="submit"
         disabled={disabled || submitting}
-        className="btn-copper w-full rounded-full py-3.5 text-sm uppercase tracking-[0.1em]"
+        className="btn-copper w-full shrink-0 rounded-full py-3.5 text-sm uppercase tracking-[0.1em]"
       >
         {submitting ? "Submitting..." : "Request print quote"}
       </button>
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? (
+        <p className="shrink-0 text-sm text-red-600">{error}</p>
+      ) : null}
     </form>
   );
 }

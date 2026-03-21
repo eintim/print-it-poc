@@ -209,14 +209,14 @@ export default function ModelViewer({
 
   if (!modelUrl && !shouldShowLoader) {
     return (
-      <div className="flex h-[460px] items-center justify-center rounded-2xl bg-gradient-to-b from-[var(--cream)] to-[var(--panel)] px-8 text-center text-sm text-[var(--muted)]">
+      <div className="flex min-h-[460px] flex-1 items-center justify-center rounded-2xl bg-gradient-to-b from-[var(--cream)] to-[var(--panel)] px-8 text-center text-sm text-[var(--muted)]">
         Generate a model to preview it here.
       </div>
     );
   }
 
   return (
-    <div className="relative h-[460px] overflow-hidden rounded-2xl bg-gradient-to-b from-[var(--cream)] to-[var(--panel)]">
+    <div className="relative h-full min-h-[460px] overflow-hidden rounded-2xl bg-gradient-to-b from-[var(--cream)] to-[var(--panel)]">
       {modelUrl ? <div ref={mountRef} className="h-full w-full" /> : null}
       {!modelUrl ? (
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(253,125,104,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(71,102,82,0.12),transparent_32%),linear-gradient(180deg,#fffdf9,#f6ede3)]" />
