@@ -96,6 +96,31 @@ textarea {
   50% { transform: translateY(-6px); }
 }
 
+@keyframes home-prompt-blink {
+  0%, 40% { opacity: 1; }
+  45%, 100% { opacity: 0; }
+}
+
+@keyframes home-note-wiggle {
+  0%, 100% {
+    transform: rotate(-1.5deg);
+  }
+
+  50% {
+    transform: rotate(0.6deg);
+  }
+}
+
+@keyframes home-vault-glow {
+  0%, 100% {
+    filter: brightness(1);
+  }
+
+  50% {
+    filter: brightness(1.06);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -123,6 +148,43 @@ textarea {
 
 .animate-float {
   animation: float 5s ease-in-out infinite;
+}
+
+/* Home: Sketch → 3D hero diagram */
+
+.home-prompt-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  margin-left: 3px;
+  vertical-align: -0.12em;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .home-prompt-caret {
+    animation: home-prompt-blink 1.15s step-end infinite;
+  }
+
+  .home-prompt-note {
+    animation: home-note-wiggle 6s ease-in-out infinite;
+    transform-origin: 45% 55%;
+  }
+
+  .home-prompt-vault {
+    animation: home-vault-glow 5s ease-in-out infinite;
+  }
+}
+
+.home-hero-3d-word {
+  color: var(--accent);
+  font-style: italic;
+  text-shadow:
+    1px 1px 0 rgba(254, 215, 170, 0.95),
+    2px 2px 0 rgba(251, 146, 60, 0.35),
+    3px 3px 0 rgba(234, 88, 12, 0.18),
+    5px 8px 22px rgba(28, 24, 21, 0.07);
 }
 
 /* Textures */

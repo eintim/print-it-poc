@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 
 function disposeMaterial(material: THREE.Material) {
   const textureKeys = [
@@ -40,12 +41,15 @@ export default function ModelViewer({
   isGenerating = false,
   loadingLabel = "Generating 3D preview",
   progress,
+  layout = "workspace",
 }: {
   modelUrl: string | null;
   onPrintMetricsChange?: (metrics: ModelPrintMetrics) => void;
   isGenerating?: boolean;
   loadingLabel?: string;
   progress?: number | null;
+  /** `embed`: fills a parent with fixed aspect (e.g. showcase cards); `workspace`: full preview panel. */
+  layout?: "workspace" | "embed";
 }) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const [errorState, setErrorState] = useState<{
@@ -125,6 +129,9 @@ export default function ModelViewer({
     resizeObserver.observe(mount);
 
     const loader = new GLTFLoader();
+    if (MeshoptDecoder.supported) {
+      loader.setMeshoptDecoder(MeshoptDecoder);
+    }
     loader.load(
       modelUrl,
       (gltf) => {
@@ -160,16 +167,18 @@ export default function ModelViewer({
         controls.target.set(0, size.y * 0.15, 0);
         controls.update();
 
-        const { triangleCount, solidVolumeModelUnits3 } =
-          computeMeshPrintStats(root);
+        if (layout === "workspace") {
+          const { triangleCount, solidVolumeModelUnits3 } =
+            computeMeshPrintStats(root);
 
-        onPrintMetricsChange?.({
-          width: size.x,
-          height: size.y,
-          depth: size.z,
-          triangleCount,
-          solidVolumeModelUnits3,
-        });
+          onPrintMetricsChange?.({
+            width: size.x,
+            height: size.y,
+            depth: size.z,
+            triangleCount,
+            solidVolumeModelUnits3,
+          });
+        }
 
         const render = () => {
           frameId = window.requestAnimationFrame(render);
@@ -218,11 +227,14 @@ export default function ModelViewer({
       renderer.forceContextLoss();
       mount.innerHTML = "";
     };
-  }, [modelUrl, onPrintMetricsChange]);
+  }, [layout, modelUrl, onPrintMetricsChange]);
 
   const shouldShowLoader = isGenerating || isModelLoading;
 
   if (!modelUrl && !shouldShowLoader) {
+    if (layout === "embed") {
+      return null;
+    }
     return (
       <div className="flex min-h-[460px] flex-1 items-center justify-center rounded-2xl bg-gradient-to-b from-[var(--cream)] to-[var(--panel)] px-8 text-center text-sm text-[var(--muted)]">
         Generate a model to preview it here.
@@ -230,8 +242,13 @@ export default function ModelViewer({
     );
   }
 
+  const shellClass =
+    layout === "embed"
+      ? "relative h-full min-h-0 w-full overflow-hidden bg-gradient-to-b from-[var(--cream)] to-[var(--panel)]"
+      : "relative h-full min-h-[460px] overflow-hidden rounded-2xl bg-gradient-to-b from-[var(--cream)] to-[var(--panel)]";
+
   return (
-    <div className="relative h-full min-h-[460px] overflow-hidden rounded-2xl bg-gradient-to-b from-[var(--cream)] to-[var(--panel)]">
+    <div className={shellClass}>
       {modelUrl ? <div ref={mountRef} className="h-full w-full" /> : null}
       {!modelUrl ? (
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(253,125,104,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(71,102,82,0.12),transparent_32%),linear-gradient(180deg,#fffdf9,#f6ede3)]" />

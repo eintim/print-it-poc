@@ -1,74 +1,58 @@
 "use client";
 
 import { useConvexAuth } from "convex/react";
+import dynamic from "next/dynamic";
+import Image from "next/image";
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import { useEffect, useRef, useState } from "react";
+
+const ModelViewer = dynamic(() => import("@/components/ModelViewer"), { ssr: false });
 
 const SHOWCASE_ITEMS = [
   {
     id: "dragon-planter",
     prompt: "A tiny dragon curled around a succulent planter, with scales that double as drainage holes",
-    tag: "Prompt → 3D",
+    tag: "From words",
     rotation: "-2.4deg",
     accent: "var(--accent)",
-    thumbnail: null,
-    note: "FDM · 4h print · PLA",
+    thumbnail: "/showcase/dragon-planter.jpg",
+    note: "Succulent-sized, ready to dress up a desk",
   },
   {
     id: "geometric-lamp",
     prompt: "Geometric lampshade inspired by Voronoi patterns, casts organic shadow patterns on the wall",
-    tag: "Prompt → 3D",
+    tag: "From words",
     rotation: "1.8deg",
     accent: "var(--sage)",
-    thumbnail: null,
-    note: "Resin · 6h print · translucent",
+    thumbnail: "/showcase/geometric-lamp.jpg",
+    note: "Light that paints the wall in soft shapes",
   },
   {
     id: "sketch-robot",
     prompt: null,
     sketchLines: true,
-    tag: "Sketch → 3D",
+    tag: "From a sketch",
     rotation: "-1.2deg",
     accent: "#7c3aed",
-    thumbnail: null,
+    thumbnail: "/showcase/sketch-robot.jpg",
     note: "From a napkin sketch",
     sketchLabel: "\"Make this little guy real\"",
   },
   {
-    id: "topographic-coaster",
-    prompt: "Set of coasters based on the topography of Mount Fuji, each one a different elevation slice",
-    tag: "Prompt → 3D",
-    rotation: "2.6deg",
-    accent: "var(--accent)",
-    thumbnail: null,
-    note: "FDM · 1.5h each · marble PLA",
-  },
-  {
-    id: "sketch-vase",
-    prompt: null,
-    sketchLines: true,
-    tag: "Sketch → 3D",
-    rotation: "-3deg",
-    accent: "#7c3aed",
-    thumbnail: null,
-    note: "Turned a doodle into decor",
-    sketchLabel: "\"Twisty vase thing\"",
-  },
-  {
     id: "chess-piece",
     prompt: "A chess knight piece but it's a corgi wearing a tiny helmet, about 6cm tall",
-    tag: "Prompt → 3D",
+    tag: "From words",
     rotation: "1.4deg",
     accent: "var(--sage)",
-    thumbnail: null,
-    note: "Resin · hi-detail · 3cm",
+    glb: "/showcase/dog_opti.glb",
+    note: "Small enough to hold, full of personality",
   },
 ];
 
-function SketchDoodle({ className }: { className?: string }) {
+function SketchDoodle({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
-    <svg className={className} viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg className={className} style={style} viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
         d="M10 60 C20 20, 40 10, 60 35 C80 60, 100 15, 110 40"
         stroke="currentColor"
@@ -172,6 +156,9 @@ function ShowcaseCard({
 }) {
   const { ref, visible } = useInView(0.1);
   const isSketch = item.sketchLines;
+  const imageAlt = item.prompt
+    ? `Idea: ${item.prompt}`
+    : `Idea: ${item.sketchLabel ?? "sketch"}`;
 
   return (
     <div
@@ -198,28 +185,8 @@ function ShowcaseCard({
         {item.tag}
       </div>
 
-      {/* Model preview area */}
-      <div className="relative mb-4 aspect-[4/3] overflow-hidden rounded-xl border-2 border-dashed transition-colors duration-300"
-        style={{ borderColor: `color-mix(in srgb, ${item.accent} 30%, transparent)` }}
-      >
-        <SketchPlaceholder seed={item.id} accent={item.accent} />
-
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-          <div className="rounded-full bg-white/90 px-4 py-2 text-xs font-bold shadow-lg backdrop-blur-sm"
-            style={{ color: item.accent }}
-          >
-            View in 3D ↗
-          </div>
-        </div>
-      </div>
-
-      {/* Arrow */}
-      <div className="my-2 flex items-center justify-center" style={{ color: item.accent }}>
-        <HandArrow className="h-5 w-16 opacity-50" />
-      </div>
-
-      {/* Prompt or sketch label */}
-      <div className="min-h-[60px]">
+      {/* Prompt or sketch first (flows into 3D below) */}
+      <div className="mb-3 min-h-[60px]">
         {isSketch ? (
           <div className="flex items-start gap-2">
             <SketchDoodle className="mt-1 h-10 w-16 shrink-0" style={{ color: item.accent } as React.CSSProperties} />
@@ -232,6 +199,44 @@ function ShowcaseCard({
             &ldquo;{item.prompt}&rdquo;
           </p>
         )}
+      </div>
+
+      {/* Arrow: prompt/sketch → 3D (points down) */}
+      <div className="my-1 flex items-center justify-center" style={{ color: item.accent }}>
+        <HandArrow className="h-16 w-5 rotate-90 opacity-50" />
+      </div>
+
+      {/* Model preview */}
+      <div className="relative mt-2 aspect-[4/3] overflow-hidden rounded-xl border-2 border-dashed transition-colors duration-300"
+        style={{ borderColor: `color-mix(in srgb, ${item.accent} 30%, transparent)` }}
+      >
+        {"glb" in item && item.glb ? (
+          <div className="absolute inset-0">
+            <ModelViewer
+              modelUrl={item.glb}
+              layout="embed"
+              loadingLabel="Loading 3D"
+            />
+          </div>
+        ) : item.thumbnail ? (
+          <Image
+            src={item.thumbnail}
+            alt={imageAlt}
+            fill
+            className="object-cover"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          />
+        ) : (
+          <SketchPlaceholder seed={item.id} accent={item.accent} />
+        )}
+
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+          <div className="rounded-full bg-white/90 px-4 py-2 text-xs font-bold shadow-lg backdrop-blur-sm"
+            style={{ color: item.accent }}
+          >
+            {"glb" in item && item.glb ? "Drag to rotate" : "Preview ↗"}
+          </div>
+        </div>
       </div>
 
       {/* Note at bottom */}
@@ -298,33 +303,33 @@ export default function ShowcasePage() {
 
       {/* Showcase grid */}
       <section className="grain relative px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mx-auto grid max-w-6xl gap-8 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mx-auto grid max-w-5xl gap-8 sm:grid-cols-2">
           {SHOWCASE_ITEMS.map((item, i) => (
             <ShowcaseCard key={item.id} item={item} index={i} />
           ))}
         </div>
 
         {/* Scattered annotations */}
-        <div className="pointer-events-none absolute left-[8%] top-[15%] hidden rotate-[-8deg] font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--muted)] opacity-30 lg:block">
-          ← that one took 4 minutes
+        <div className="pointer-events-none absolute left-[6%] top-[32%] z-20 hidden max-w-[11rem] rotate-[-8deg] rounded-md border border-[var(--line)] bg-[var(--paper)]/95 px-3 py-2 font-mono text-[11px] font-semibold uppercase leading-snug tracking-[0.12em] text-[var(--accent)] shadow-[var(--shadow-sm)] backdrop-blur-sm lg:block">
+          feels instant when you&rsquo;re in the flow →
         </div>
-        <div className="pointer-events-none absolute bottom-[20%] right-[6%] hidden rotate-[5deg] font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--muted)] opacity-30 lg:block">
-          napkin sketch energy →
+        <div className="pointer-events-none absolute bottom-[18%] right-[4%] z-20 hidden max-w-[11rem] rotate-[5deg] rounded-md border border-[var(--line)] bg-[var(--paper)]/95 px-3 py-2 font-mono text-[11px] font-semibold uppercase leading-snug tracking-[0.12em] text-[var(--sage)] shadow-[var(--shadow-sm)] backdrop-blur-sm lg:block">
+          ← napkin sketch energy
         </div>
       </section>
 
       {/* Process strip */}
       <section className="border-y-2 border-dashed border-[var(--line-strong)] bg-[var(--paper)] px-4 py-20 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-4xl">
+        <div className="mx-auto max-w-5xl">
           <p className="text-center font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--muted)]">
             How it works (seriously, that&rsquo;s it)
           </p>
 
-          <div className="mt-12 flex flex-col items-center gap-6 sm:flex-row sm:gap-0">
+          <div className="mt-12 flex flex-col items-center justify-center gap-6 sm:flex-row sm:justify-center sm:gap-0">
             {[
               { step: "01", label: "Describe it", sub: "or upload a sketch" },
               { step: "02", label: "AI refines it", sub: "back-and-forth chat" },
-              { step: "03", label: "Get a 3D model", sub: "spin it, inspect it" },
+              { step: "03", label: "Preview your piece", sub: "look from every angle" },
               { step: "04", label: "Order a print", sub: "real thing, shipped" },
             ].map((s, i) => (
               <div key={s.step} className="flex items-center gap-0">
@@ -357,18 +362,15 @@ export default function ShowcasePage() {
           </h2>
           <p className="mx-auto mt-4 max-w-md font-serif text-lg text-[var(--muted)]">
             Got something rattling around in your head? Throw it at us.
-            Worst case you get a cool 3D model out of it.
+            Worst case you get something you can hold up and show people.
           </p>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-8 flex justify-center">
             <Link
               href={createHref}
               className="btn-copper rounded-full px-8 py-4 text-sm"
             >
               Start creating
             </Link>
-            <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--muted)]">
-              free to try
-            </span>
           </div>
         </div>
       </section>
