@@ -3,13 +3,33 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
+
+/** Written by `npm run showcase:fetch-meshy` — matches the moon-jar hero sketch. */
+const HOME_HERO_GLB_URL = "/showcase/home-hero_opti.glb";
 
 type HomeHeroThreePreviewProps = {
   className?: string;
 };
 
+function disposeObject3D(root: THREE.Object3D) {
+  root.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (mesh.isMesh) {
+      mesh.geometry?.dispose();
+      const mats = mesh.material;
+      if (Array.isArray(mats)) {
+        for (const m of mats) m.dispose();
+      } else if (mats) {
+        mats.dispose();
+      }
+    }
+  });
+}
+
 /**
- * Lightweight WebGL hero: a real shaded mesh users can orbit — no GLTF fetch.
+ * Home hero 3D: loads Meshy preview GLB (meshopt) when present; otherwise a shaded TorusKnot.
  */
 export default function HomeHeroThreePreview({
   className = "",
@@ -57,18 +77,6 @@ export default function HomeHeroThreePreview({
     copper.position.set(-1.8, -2.2, 3.5);
     scene.add(copper);
 
-    const geo = new THREE.TorusKnotGeometry(0.82, 0.26, 140, 18, 2, 3);
-    const mat = new THREE.MeshStandardMaterial({
-      color: 0xf59e0b,
-      metalness: 0.38,
-      roughness: 0.34,
-      emissive: 0x7c2d12,
-      emissiveIntensity: 0.12,
-    });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.rotation.x = 0.35;
-    scene.add(mesh);
-
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.enablePan = false;
@@ -79,14 +87,10 @@ export default function HomeHeroThreePreview({
     controls.target.set(0, 0, 0);
 
     let raf = 0;
-    const tick = () => {
-      mesh.rotation.y += 0.0055;
-      mesh.rotation.x += 0.0012;
-      controls.update();
-      renderer.render(scene, camera);
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
+    let disposed = false;
+    /** Mesh or loaded root we spin each frame */
+    let spinTarget: THREE.Object3D | null = null;
+    let spinTorusStyle = false;
 
     const ro = new ResizeObserver(() => {
       const w = width();
@@ -97,12 +101,101 @@ export default function HomeHeroThreePreview({
     });
     ro.observe(mount);
 
+    const tick = () => {
+      if (disposed) return;
+      if (spinTarget) {
+        if (spinTorusStyle) {
+          spinTarget.rotation.y += 0.0055;
+          spinTarget.rotation.x += 0.0012;
+        } else {
+          spinTarget.rotation.y += 0.0045;
+        }
+      }
+      controls.update();
+      renderer.render(scene, camera);
+      raf = requestAnimationFrame(tick);
+    };
+
+    function applyFramedCamera(root: THREE.Object3D) {
+      const box = new THREE.Box3().setFromObject(root);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      root.position.sub(center);
+      root.position.y = -size.y / 2 + 0.05;
+
+      const placed = new THREE.Box3().setFromObject(root);
+      const placedCenter = placed.getCenter(new THREE.Vector3());
+      const placedSize = placed.getSize(new THREE.Vector3());
+      const maxDim = Math.max(placedSize.x, placedSize.y, placedSize.z, 0.01);
+
+      controls.target.copy(placedCenter);
+      const offset = new THREE.Vector3(maxDim * 1.25, maxDim * 0.88, maxDim * 1.42);
+      camera.position.copy(placedCenter).add(offset);
+      controls.minDistance = Math.max(0.8, maxDim * 1.05);
+      controls.maxDistance = Math.max(4.5, maxDim * 5.5);
+      controls.update();
+    }
+
+    function startProceduralTorus() {
+      const geo = new THREE.TorusKnotGeometry(0.82, 0.26, 140, 18, 2, 3);
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0xf59e0b,
+        metalness: 0.38,
+        roughness: 0.34,
+        emissive: 0x7c2d12,
+        emissiveIntensity: 0.12,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.rotation.x = 0.35;
+      scene.add(mesh);
+      spinTarget = mesh;
+      spinTorusStyle = true;
+      camera.position.set(0.12, 0.28, 3.05);
+      controls.target.set(0, 0, 0);
+      controls.minDistance = 1.85;
+      controls.maxDistance = 5.8;
+      controls.update();
+    }
+
+    const loader = new GLTFLoader();
+    if (MeshoptDecoder.supported) {
+      loader.setMeshoptDecoder(MeshoptDecoder);
+    }
+
+    loader.load(
+      HOME_HERO_GLB_URL,
+      (gltf) => {
+        if (disposed) {
+          disposeObject3D(gltf.scene);
+          return;
+        }
+        const root = gltf.scene;
+        scene.add(root);
+        applyFramedCamera(root);
+        spinTarget = root;
+        spinTorusStyle = false;
+        raf = requestAnimationFrame(tick);
+      },
+      undefined,
+      () => {
+        if (disposed) return;
+        startProceduralTorus();
+        raf = requestAnimationFrame(tick);
+      },
+    );
+
     return () => {
+      disposed = true;
       cancelAnimationFrame(raf);
       ro.disconnect();
       controls.dispose();
-      geo.dispose();
-      mat.dispose();
+      for (const child of [...scene.children]) {
+        if (child === ambient || child === key || child === fill || child === copper) {
+          continue;
+        }
+        scene.remove(child);
+        disposeObject3D(child);
+      }
       renderer.dispose();
       if (renderer.domElement.parentNode === mount) {
         mount.removeChild(renderer.domElement);

@@ -15,7 +15,7 @@ const SHOWCASE_ITEMS = [
     tag: "From words",
     rotation: "-2.4deg",
     accent: "var(--accent)",
-    thumbnail: "/showcase/dragon-planter.jpg",
+    glb: "/showcase/dragon-planter_opti.glb",
     note: "Succulent-sized, ready to dress up a desk",
   },
   {
@@ -24,7 +24,7 @@ const SHOWCASE_ITEMS = [
     tag: "From words",
     rotation: "1.8deg",
     accent: "var(--sage)",
-    thumbnail: "/showcase/geometric-lamp.jpg",
+    glb: "/showcase/geometric-lamp_opti.glb",
     note: "Light that paints the wall in soft shapes",
   },
   {
@@ -34,7 +34,7 @@ const SHOWCASE_ITEMS = [
     tag: "From a sketch",
     rotation: "-1.2deg",
     accent: "#7c3aed",
-    thumbnail: "/showcase/sketch-robot.jpg",
+    glb: "/showcase/sketch-robot_opti.glb",
     note: "From a napkin sketch",
     sketchLabel: "\"Make this little guy real\"",
   },
@@ -44,7 +44,7 @@ const SHOWCASE_ITEMS = [
     tag: "From words",
     rotation: "1.4deg",
     accent: "var(--sage)",
-    glb: "/showcase/dog_opti.glb",
+    glb: "/showcase/chess-piece_opti.glb",
     note: "Small enough to hold, full of personality",
   },
 ];

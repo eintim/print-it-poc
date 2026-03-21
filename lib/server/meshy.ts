@@ -3,6 +3,7 @@ import {
   getMeshyApiKey,
   getMeshyBaseUrl,
   getMeshyModel,
+  getMeshyPreviewGeometryOptions,
   getMeshyUseMock,
 } from "./env";
 
@@ -162,9 +163,9 @@ export async function createMeshyPreviewTask(prompt: string) {
       mode: "preview",
       prompt,
       ai_model: getMeshyModel(),
-      should_remesh: false,
       auto_size: true,
       target_formats: ["glb", "stl"],
+      ...getMeshyPreviewGeometryOptions(),
     }),
   });
 
@@ -185,6 +186,7 @@ export async function createMeshyImageTo3dTask(imageUrl: string) {
       auto_size: true,
       should_texture: false,
       target_formats: ["glb", "stl"],
+      ...getMeshyPreviewGeometryOptions(),
     }),
   });
 
