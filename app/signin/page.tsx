@@ -21,75 +21,52 @@ export default function SignIn() {
       <SiteHeader />
 
       <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
-        <section className="grid gap-6 rounded-[2.5rem] bg-white p-6 shadow-[var(--shadow)] lg:grid-cols-[minmax(0,1.05fr)_460px] lg:p-10">
+        <section className="grain grid gap-6 overflow-hidden rounded-3xl bg-[var(--paper)] p-6 shadow-[var(--shadow)] lg:grid-cols-[minmax(0,1fr)_420px] lg:p-10">
           <div className="flex flex-col justify-between gap-8">
-            <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-[var(--accent)]">
+            <div className="animate-fade-up">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--accent)]">
                 Account
               </p>
-              <h1
-                className="mt-4 max-w-3xl text-5xl font-semibold leading-tight text-[var(--foreground)] sm:text-6xl"
-                style={{ fontFamily: "var(--font-newsreader), serif" }}
-              >
+              <h1 className="mt-4 max-w-3xl font-serif text-5xl font-semibold leading-[1.1] text-[var(--foreground)] sm:text-6xl">
                 {flow === "signIn"
                   ? "Sign in to keep building from where you left off."
                   : "Create an account to save every idea you refine."}
               </h1>
-              <p
-                className="mt-6 max-w-2xl text-xl leading-8 text-[var(--muted)]"
-                style={{ fontFamily: "var(--font-newsreader), serif" }}
-              >
+              <p className="mt-6 max-w-2xl font-serif text-xl leading-8 text-[var(--muted)]">
                 Save refinement sessions, generated models, and print quote
-                requests in one workspace. Public pages stay open, and protected
-                pages will bring you here when you need an account.
+                requests in one workspace.
               </p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="rounded-[1.75rem] bg-[var(--panel)] p-5">
-                <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[var(--accent)]">
-                  Refine
-                </p>
-                <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
-                  Shape a rough thought into a clearer, more printable concept.
-                </p>
-              </div>
-              <div className="rounded-[1.75rem] bg-[var(--panel)] p-5">
-                <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[var(--accent)]">
-                  Generate
-                </p>
-                <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
-                  Preview the 3D model before moving on to production.
-                </p>
-              </div>
-              <div className="rounded-[1.75rem] bg-[var(--panel)] p-5">
-                <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[var(--accent)]">
-                  Order
-                </p>
-                <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
-                  Keep quote requests and saved ideas connected to your account.
-                </p>
-              </div>
+            <div className="animate-fade-up delay-2 grid gap-3 sm:grid-cols-3">
+              {[
+                { label: "Refine", desc: "Shape a rough thought into a clearer, more printable concept." },
+                { label: "Generate", desc: "Preview the 3D model before moving on to production." },
+                { label: "Order", desc: "Keep quote requests and saved ideas connected to your account." },
+              ].map((item) => (
+                <div key={item.label} className="rounded-xl bg-[var(--panel)] p-4">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--accent)]">
+                    {item.label}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+                    {item.desc}
+                  </p>
+                </div>
+              ))}
             </div>
 
             <div className="flex flex-wrap gap-3 text-sm">
-              <Link
-                href="/"
-                className="rounded-full border border-[rgba(186,176,164,0.42)] bg-[var(--paper)] px-5 py-3 font-bold text-[var(--foreground)] transition hover:bg-[var(--cream)]"
-              >
+              <Link href="/" className="btn-outline rounded-full px-5 py-2.5">
                 Back to home
               </Link>
-              <Link
-                href="/about"
-                className="rounded-full border border-[rgba(186,176,164,0.42)] bg-[var(--paper)] px-5 py-3 font-bold text-[var(--foreground)] transition hover:bg-[var(--cream)]"
-              >
-                About Print It 2
+              <Link href="/about" className="btn-outline rounded-full px-5 py-2.5">
+                About Print It
               </Link>
             </div>
           </div>
 
           <form
-            className="paper-texture flex flex-col gap-4 rounded-[2.25rem] bg-[var(--panel)] p-6 lg:p-8"
+            className="animate-slide-right delay-1 flex flex-col gap-4 rounded-2xl bg-[var(--panel)] p-6 paper-texture lg:p-8"
             onSubmit={async (e) => {
               e.preventDefault();
               setLoading(true);
@@ -106,26 +83,23 @@ export default function SignIn() {
             }}
           >
             <div>
-              <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[var(--accent)]">
+              <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--accent)]">
                 {flow === "signIn" ? "Welcome back" : "New workspace"}
               </p>
-              <h2
-                className="mt-2 text-4xl font-semibold text-[var(--foreground)]"
-                style={{ fontFamily: "var(--font-newsreader), serif" }}
-              >
+              <h2 className="mt-2 font-serif text-3xl font-semibold text-[var(--foreground)]">
                 {flow === "signIn" ? "Sign in" : "Create account"}
               </h2>
-              <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
+              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
                 {redirectTo === "/"
                   ? "Use your account to pick up saved work and manage your quote requests."
                   : `Sign in to continue to ${redirectTo}.`}
               </p>
             </div>
 
-            <label className="flex flex-col gap-2 text-sm font-medium text-[var(--foreground)]">
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--foreground)]">
               Email
               <input
-                className="rounded-[1.5rem] border border-[rgba(186,176,164,0.36)] bg-white px-4 py-3 text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)]/70 focus:border-[rgba(165,60,44,0.35)]"
+                className="studio-input rounded-xl"
                 type="email"
                 name="email"
                 placeholder="you@example.com"
@@ -133,12 +107,12 @@ export default function SignIn() {
               />
             </label>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-[var(--foreground)]">
                 Password
               </label>
               <input
-                className="rounded-[1.5rem] border border-[rgba(186,176,164,0.36)] bg-white px-4 py-3 text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)]/70 focus:border-[rgba(165,60,44,0.35)]"
+                className="studio-input rounded-xl"
                 type="password"
                 name="password"
                 placeholder="Enter your password"
@@ -153,8 +127,7 @@ export default function SignIn() {
             </div>
 
             <button
-              className="rounded-full px-5 py-3 text-sm font-extrabold uppercase tracking-[0.16em] text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-              style={{ background: "linear-gradient(135deg, var(--accent-soft), var(--accent))" }}
+              className="btn-copper rounded-full py-3 text-sm"
               type="submit"
               disabled={loading}
             >
@@ -175,7 +148,7 @@ export default function SignIn() {
               </span>
               <button
                 type="button"
-                className="font-medium text-[var(--accent)] underline decoration-2 underline-offset-2 hover:no-underline"
+                className="font-semibold text-[var(--accent)] underline decoration-[var(--accent)]/30 decoration-2 underline-offset-2 transition hover:decoration-[var(--accent)]"
                 onClick={() => setFlow(flow === "signIn" ? "signUp" : "signIn")}
               >
                 {flow === "signIn" ? "Sign up" : "Sign in"}
@@ -183,10 +156,8 @@ export default function SignIn() {
             </div>
 
             {error ? (
-              <div className="rounded-[1.75rem] border border-[#e2b0a8] bg-[#fff2ef] p-4">
-                <p className="break-words text-sm font-medium text-[#b54b4b]">
-                  Error: {error}
-                </p>
+              <div className="rounded-xl border border-red-200 bg-red-50 p-3">
+                <p className="text-sm font-medium text-red-700">{error}</p>
               </div>
             ) : null}
           </form>

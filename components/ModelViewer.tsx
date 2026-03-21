@@ -209,20 +209,20 @@ export default function ModelViewer({
 
   if (!modelUrl && !shouldShowLoader) {
     return (
-      <div className="flex h-[460px] items-center justify-center rounded-[2rem] bg-[linear-gradient(180deg,#fffdf9,#f6ede3)] px-8 text-center text-sm text-[var(--muted)]">
+      <div className="flex h-[460px] items-center justify-center rounded-2xl bg-gradient-to-b from-[var(--cream)] to-[var(--panel)] px-8 text-center text-sm text-[var(--muted)]">
         Generate a model to preview it here.
       </div>
     );
   }
 
   return (
-    <div className="relative h-[460px] overflow-hidden rounded-[2rem] bg-[linear-gradient(180deg,#fffdf9,#f6ede3)]">
+    <div className="relative h-[460px] overflow-hidden rounded-2xl bg-gradient-to-b from-[var(--cream)] to-[var(--panel)]">
       {modelUrl ? <div ref={mountRef} className="h-full w-full" /> : null}
       {!modelUrl ? (
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(253,125,104,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(71,102,82,0.12),transparent_32%),linear-gradient(180deg,#fffdf9,#f6ede3)]" />
       ) : null}
       {shouldShowLoader ? (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-[#fff8f1]/88 backdrop-blur-sm">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-[var(--cream)]/90 backdrop-blur-sm">
           <div className="relative flex h-24 w-24 items-center justify-center">
             <div className="absolute h-24 w-24 rounded-full border border-[var(--accent-soft)]/20" />
             <div className="absolute h-24 w-24 animate-ping rounded-full border border-[var(--accent-soft)]/35" />
@@ -247,7 +247,7 @@ export default function ModelViewer({
         </div>
       ) : null}
       {errorState?.modelUrl === modelUrl ? (
-        <div className="absolute inset-0 flex items-center justify-center bg-[#fff8f1]/95 p-6 text-center text-sm text-[#b54b4b]">
+        <div className="absolute inset-0 flex items-center justify-center bg-[var(--cream)]/95 p-6 text-center text-sm text-red-600">
           {errorState.message}
         </div>
       ) : null}

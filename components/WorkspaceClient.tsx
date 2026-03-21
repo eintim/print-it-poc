@@ -532,10 +532,7 @@ export default function WorkspaceClient({
                 {!hasMessages ? (
                   <div className="flex flex-1 flex-col items-center justify-center px-4 py-8 text-center">
                     <div className="mb-5 h-12 w-12 rounded-full bg-[rgba(253,125,104,0.12)]" />
-                    <h3
-                      className="text-3xl font-medium text-[var(--foreground)] sm:text-4xl"
-                      style={{ fontFamily: "var(--font-newsreader), serif" }}
-                    >
+                    <h3 className="font-serif text-3xl font-medium text-[var(--foreground)] sm:text-4xl">
                       What shall we craft?
                     </h3>
                     <p className="mt-2 max-w-md text-sm leading-relaxed text-[var(--muted)]">
@@ -626,8 +623,7 @@ export default function WorkspaceClient({
                     }}
                   />
                   <button
-                    className="self-end rounded-xl px-5 py-3 text-sm font-bold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
-                    style={{ background: "linear-gradient(135deg, var(--accent), var(--accent-soft))" }}
+                    className="btn-copper self-end rounded-xl px-5 py-3 text-sm"
                     onClick={() => {
                       void handleRefine();
                     }}
@@ -672,8 +668,7 @@ export default function WorkspaceClient({
               </div>
 
               <button
-                className="w-full rounded-xl px-5 py-4 text-sm font-bold text-white shadow-[0_12px_28px_rgba(165,60,44,0.18)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg, var(--accent-soft), var(--accent))" }}
+                className="btn-copper w-full rounded-xl px-5 py-4 text-sm"
                 onClick={() => {
                   void handleGenerate();
                 }}
@@ -691,10 +686,7 @@ export default function WorkspaceClient({
             <div className="overflow-hidden rounded-2xl bg-white shadow-[var(--shadow)]">
               <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
                 <div className="flex items-center gap-3">
-                  <h2
-                    className="text-xl font-semibold text-[var(--foreground)]"
-                    style={{ fontFamily: "var(--font-newsreader), serif" }}
-                  >
+                  <h2 className="font-serif text-xl font-semibold text-[var(--foreground)]">
                     3D Preview
                   </h2>
                   {jobProgress ? (
@@ -777,10 +769,7 @@ export default function WorkspaceClient({
                 <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
                   Estimated total
                 </p>
-                <p
-                  className="mt-1 text-3xl font-semibold text-[var(--accent)]"
-                  style={{ fontFamily: "var(--font-newsreader), serif" }}
-                >
+                <p className="mt-1 font-serif text-3xl font-semibold text-[var(--accent)]">
                   {formatUsd(estimatedPriceUsd)}
                 </p>
                 {scaledDimensions ? (
@@ -803,8 +792,7 @@ export default function WorkspaceClient({
                   type="button"
                   onClick={() => setActiveScreen("order")}
                   disabled={!activeModel}
-                  className="flex-1 rounded-xl px-4 py-3 text-sm font-bold text-white shadow-[0_12px_28px_rgba(165,60,44,0.18)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
-                  style={{ background: "linear-gradient(135deg, var(--accent-soft), var(--accent))" }}
+                  className="btn-copper flex-1 rounded-xl px-4 py-3 text-sm"
                 >
                   Continue to order
                 </button>
@@ -840,10 +828,7 @@ export default function WorkspaceClient({
                 <p className="mt-2 text-sm font-bold text-[var(--foreground)]">
                   {selectedSizeOption.label} · {selectedSizeOption.targetHeightMm} mm
                 </p>
-                <p
-                  className="mt-1 text-2xl font-semibold text-[var(--accent)]"
-                  style={{ fontFamily: "var(--font-newsreader), serif" }}
-                >
+                <p className="mt-1 font-serif text-2xl font-semibold text-[var(--accent)]">
                   {formatUsd(estimatedPriceUsd)}
                 </p>
                 {scaledDimensions ? (

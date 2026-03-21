@@ -38,7 +38,7 @@ export default function PrintOrderForm({
 
   return (
     <form
-      className="space-y-5 rounded-[2rem] bg-white p-6"
+      className="space-y-5 rounded-2xl bg-white p-6 shadow-[var(--shadow)]"
       onSubmit={(event) => {
         event.preventDefault();
         setSubmitting(true);
@@ -64,20 +64,17 @@ export default function PrintOrderForm({
       }}
     >
       <div className="space-y-2">
-        <p className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-[var(--accent)]">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--accent)]">
           Final order
         </p>
-        <h3
-          className="text-4xl font-semibold text-[var(--foreground)]"
-          style={{ fontFamily: "var(--font-newsreader), serif" }}
-        >
+        <h3 className="font-serif text-3xl font-semibold text-[var(--foreground)]">
           Share your delivery details
         </h3>
       </div>
 
-      <div className="grid gap-4 rounded-[1.75rem] bg-[var(--panel)] p-5 md:grid-cols-2">
+      <div className="grid gap-4 rounded-xl bg-[var(--panel)] p-4 md:grid-cols-2">
         <div>
-          <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[var(--muted)]">
+          <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">
             Selected size
           </p>
           <p className="mt-2 text-lg font-semibold text-[var(--foreground)]">
@@ -85,7 +82,7 @@ export default function PrintOrderForm({
           </p>
         </div>
         <div>
-          <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[var(--muted)]">
+          <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">
             Estimated price
           </p>
           <p className="mt-2 text-lg font-semibold text-[var(--accent)]">
@@ -95,7 +92,7 @@ export default function PrintOrderForm({
       </div>
 
       <input
-        className="w-full rounded-[1.5rem] border border-[rgba(186,176,164,0.32)] bg-[var(--cream)] px-4 py-3 text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)]/70 focus:border-[rgba(165,60,44,0.35)]"
+        className="studio-input rounded-xl"
         placeholder="Contact name"
         value={contactName}
         onChange={(event) => setContactName(event.target.value)}
@@ -103,7 +100,7 @@ export default function PrintOrderForm({
         disabled={disabled || submitting}
       />
       <input
-        className="w-full rounded-[1.5rem] border border-[rgba(186,176,164,0.32)] bg-[var(--cream)] px-4 py-3 text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)]/70 focus:border-[rgba(165,60,44,0.35)]"
+        className="studio-input rounded-xl"
         placeholder="Email"
         type="email"
         value={email || defaultEmail}
@@ -112,7 +109,7 @@ export default function PrintOrderForm({
         disabled={disabled || submitting}
       />
       <textarea
-        className="min-h-28 w-full rounded-[1.5rem] border border-[rgba(186,176,164,0.32)] bg-[var(--cream)] px-4 py-3 text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)]/70 focus:border-[rgba(165,60,44,0.35)]"
+        className="studio-input min-h-28 rounded-xl"
         placeholder="Shipping address"
         value={shippingAddress}
         onChange={(event) => setShippingAddress(event.target.value)}
@@ -120,7 +117,7 @@ export default function PrintOrderForm({
         disabled={disabled || submitting}
       />
       <textarea
-        className="min-h-24 w-full rounded-[1.5rem] border border-[rgba(186,176,164,0.32)] bg-[var(--cream)] px-4 py-3 text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)]/70 focus:border-[rgba(165,60,44,0.35)]"
+        className="studio-input min-h-24 rounded-xl"
         placeholder="Optional notes"
         value={notes}
         onChange={(event) => setNotes(event.target.value)}
@@ -129,12 +126,11 @@ export default function PrintOrderForm({
       <button
         type="submit"
         disabled={disabled || submitting}
-        className="w-full rounded-[1.75rem] px-4 py-4 text-sm font-extrabold uppercase tracking-[0.14em] text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
-        style={{ background: "linear-gradient(135deg, var(--accent-soft), var(--accent))" }}
+        className="btn-copper w-full rounded-full py-3.5 text-sm uppercase tracking-[0.1em]"
       >
         {submitting ? "Submitting..." : "Request print quote"}
       </button>
-      {error ? <p className="text-sm text-[#b54b4b]">{error}</p> : null}
+      {error ? <p className="text-sm text-red-600">{error}</p> : null}
     </form>
   );
 }
