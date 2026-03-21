@@ -13,12 +13,26 @@ type Idea = Doc<"refinementSessions"> & {
   thumbnailUrl?: string | null;
 };
 
-function formatIdeaStatus(status: Idea["status"]) {
+function statusDotColor(status: Idea["status"]) {
+  switch (status) {
+    case "generated":
+      return "bg-[var(--accent)]";
+    case "ready":
+      return "bg-[var(--sage)]";
+    case "generating":
+      return "bg-amber-500 animate-pulse";
+    case "draft":
+    default:
+      return "bg-[var(--muted)]";
+  }
+}
+
+function statusLabel(status: Idea["status"]) {
   switch (status) {
     case "draft":
       return "Draft";
     case "ready":
-      return "Ready to generate";
+      return "Ready";
     case "generating":
       return "Generating";
     case "generated":
@@ -28,38 +42,85 @@ function formatIdeaStatus(status: Idea["status"]) {
   }
 }
 
-function formatIdeaDate(timestamp: number) {
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(timestamp);
+function timeAgo(timestamp: number) {
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(
+    timestamp,
+  );
 }
 
-function getIdeaPreview(idea: Idea) {
-  const canonicalPrompt = idea.canonicalPrompt?.trim();
-  const latestPrompt = idea.latestPrompt.trim();
-
-  if (canonicalPrompt) {
-    return { label: "Ready prompt", text: canonicalPrompt };
-  }
-  if (latestPrompt) {
-    return { label: "Latest draft", text: latestPrompt };
-  }
-  return { label: "Original idea", text: idea.originalPrompt };
+function getPreviewText(idea: Idea) {
+  const canonical = idea.canonicalPrompt?.trim();
+  if (canonical) return canonical;
+  const latest = idea.latestPrompt.trim();
+  if (latest) return latest;
+  return idea.originalPrompt;
 }
 
-function getIdeaStatusClasses(status: Idea["status"]) {
-  switch (status) {
-    case "ready":
-      return "bg-[var(--sage-soft)] text-[var(--sage)]";
-    case "generated":
-      return "bg-[var(--accent-glow)] text-[var(--accent)]";
-    case "generating":
-      return "bg-[rgba(234,88,12,0.1)] text-[var(--accent)]";
-    case "draft":
-    default:
-      return "bg-[var(--panel)] text-[var(--muted)]";
-  }
+function IdeaCard({ idea }: { idea: Idea }) {
+  return (
+    <Link
+      href={`/create?sessionId=${idea._id}`}
+      className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--paper)] transition-all duration-200 hover:border-[var(--line-strong)] hover:shadow-[var(--shadow)]"
+    >
+      {idea.thumbnailUrl ? (
+        <div className="relative aspect-[4/3] w-full overflow-hidden bg-[var(--panel)]">
+          <Image
+            src={idea.thumbnailUrl}
+            alt={idea.title}
+            fill
+            unoptimized
+            sizes="(max-width: 768px) 100vw, 50vw"
+            className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+          />
+        </div>
+      ) : (
+        <div className="flex aspect-[4/3] w-full items-center justify-center bg-[var(--panel)]">
+          <span className="text-3xl text-[var(--muted)] opacity-30">
+            &#9651;
+          </span>
+        </div>
+      )}
+
+      <div className="flex flex-1 flex-col p-5">
+        <h3 className="font-serif text-xl font-semibold leading-snug text-[var(--foreground)] sm:text-[1.35rem]">
+          {idea.title}
+        </h3>
+
+        <p
+          className="mt-2 text-sm leading-relaxed text-[var(--muted)]"
+          style={{
+            display: "-webkit-box",
+            WebkitBoxOrient: "vertical",
+            WebkitLineClamp: 2,
+            overflow: "hidden",
+          }}
+        >
+          {getPreviewText(idea)}
+        </p>
+
+        <div className="mt-auto flex items-center gap-2 pt-4">
+          <span
+            className={`inline-block h-2 w-2 rounded-full ${statusDotColor(idea.status)}`}
+          />
+          <span className="text-xs font-medium text-[var(--muted)]">
+            {statusLabel(idea.status)}
+          </span>
+          <span className="text-xs text-[var(--muted)] opacity-50">&middot;</span>
+          <span className="text-xs text-[var(--muted)] opacity-70">
+            {timeAgo(idea.lastMessageAt)}
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
 }
 
 function IdeasList() {
@@ -69,147 +130,51 @@ function IdeasList() {
     { initialNumItems: 12 },
   );
 
-  const readyCount = results.filter(
-    (idea) => idea.status === "ready" || idea.status === "generated",
-  ).length;
-  const draftCount = results.filter((idea) => idea.status === "draft").length;
-
   if (results.length === 0 && status === "LoadingFirstPage") {
     return (
-      <div className="craft-card p-6 text-sm text-[var(--muted)] sm:p-8">
+      <p className="py-12 text-center text-sm text-[var(--muted)]">
         Loading your ideas...
-      </div>
+      </p>
     );
   }
 
   if (results.length === 0) {
     return (
-      <div className="craft-card p-8">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--accent)]">
-          No saved ideas yet
-        </p>
-        <h2 className="mt-3 font-serif text-3xl font-semibold text-[var(--foreground)] sm:text-4xl">
-          Start your first concept
+      <div className="rounded-2xl border border-[var(--line)] bg-[var(--paper)] px-6 py-12 text-center sm:px-8">
+        <h2 className="font-serif text-3xl font-semibold text-[var(--foreground)]">
+          No ideas yet
         </h2>
-        <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--muted)]">
+        <p className="mx-auto mt-3 max-w-md text-base leading-7 text-[var(--muted)]">
           Once you begin refining prompts, each idea will appear here so you can
           reopen it and keep iterating.
         </p>
         <Link
           href="/create"
-          className="btn-copper mt-6 inline-flex rounded-full px-6 py-3 text-xs uppercase tracking-[0.12em]"
+          className="btn-copper mt-6 inline-flex rounded-full px-6 py-3 text-xs font-bold uppercase tracking-widest"
         >
-          Create an idea
+          Create your first idea
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        <span className="rounded-full bg-[var(--paper)] px-3.5 py-1.5 text-sm font-semibold text-[var(--foreground)] shadow-[var(--shadow-sm)]">
-          {results.length} total
-        </span>
-        <span className="rounded-full bg-[var(--sage-soft)] px-3.5 py-1.5 text-sm font-semibold text-[var(--sage)]">
-          {readyCount} ready
-        </span>
-        <span className="rounded-full bg-[var(--panel)] px-3.5 py-1.5 text-sm font-semibold text-[var(--muted)]">
-          {draftCount} drafts
-        </span>
-      </div>
-
-      <div className="space-y-3">
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {results.map((idea) => (
-          <article key={idea._id} className="craft-card p-5 sm:p-6">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-              {idea.thumbnailUrl ? (
-                <div className="relative h-32 w-full overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)] lg:h-36 lg:w-48 lg:flex-none">
-                  <Image
-                    src={idea.thumbnailUrl}
-                    alt={`${idea.title} thumbnail`}
-                    fill
-                    unoptimized
-                    sizes="(max-width: 1024px) 100vw, 192px"
-                    className="object-cover"
-                  />
-                </div>
-              ) : null}
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${getIdeaStatusClasses(idea.status)}`}
-                  >
-                    {formatIdeaStatus(idea.status)}
-                  </span>
-                  <span className="text-xs text-[var(--muted)]">
-                    Updated {formatIdeaDate(idea.lastMessageAt)}
-                  </span>
-                </div>
-                <h2 className="mt-3 font-serif text-2xl font-semibold leading-tight text-[var(--foreground)] sm:text-3xl">
-                  {idea.title}
-                </h2>
-
-                <div className="mt-4 rounded-xl bg-[var(--panel)] p-4">
-                  <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">
-                    {getIdeaPreview(idea).label}
-                  </p>
-                  <p
-                    className="mt-2 text-sm leading-7 text-[var(--foreground)]"
-                    style={{
-                      display: "-webkit-box",
-                      WebkitBoxOrient: "vertical",
-                      WebkitLineClamp: 3,
-                      overflow: "hidden",
-                    }}
-                  >
-                    {getIdeaPreview(idea).text || "Still being refined."}
-                  </p>
-                </div>
-
-                {getIdeaPreview(idea).text !== idea.originalPrompt ? (
-                  <p
-                    className="mt-3 text-sm leading-6 text-[var(--muted)]"
-                    style={{
-                      display: "-webkit-box",
-                      WebkitBoxOrient: "vertical",
-                      WebkitLineClamp: 2,
-                      overflow: "hidden",
-                    }}
-                  >
-                    Started with: {idea.originalPrompt}
-                  </p>
-                ) : null}
-              </div>
-
-              <div className="flex flex-wrap gap-2 lg:w-[180px] lg:flex-col lg:items-stretch">
-                <Link
-                  href={`/create?sessionId=${idea._id}`}
-                  className="btn-copper rounded-full px-5 py-2.5 text-center text-xs uppercase tracking-[0.12em]"
-                >
-                  Continue
-                </Link>
-                <Link
-                  href="/create"
-                  className="btn-outline rounded-full px-5 py-2.5 text-center text-sm"
-                >
-                  New idea
-                </Link>
-              </div>
-            </div>
-          </article>
+          <IdeaCard key={idea._id} idea={idea} />
         ))}
       </div>
 
       {status === "CanLoadMore" || status === "LoadingMore" ? (
-        <div className="flex justify-center pt-2">
+        <div className="flex justify-center">
           <button
             type="button"
             onClick={() => loadMore(12)}
             disabled={status === "LoadingMore"}
-            className="btn-outline rounded-full px-5 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+            className="btn-outline rounded-full px-6 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {status === "LoadingMore" ? "Loading more..." : "Load more ideas"}
+            {status === "LoadingMore" ? "Loading..." : "Load more"}
           </button>
         </div>
       ) : null}
@@ -231,41 +196,34 @@ export default function MyIdeasPage() {
     <main className="min-h-screen">
       <SiteHeader />
 
-      <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
-        <section className="grain paper-texture overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-6 py-6 sm:px-8 sm:py-7">
-          <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl animate-fade-up">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--accent)]">
-                My ideas
-              </p>
-              <h1 className="mt-3 font-serif text-4xl font-semibold leading-tight text-[var(--foreground)] sm:text-5xl">
-                Pick up where you left off.
-              </h1>
-              <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--muted)] sm:text-lg">
-                Open any saved idea to keep refining it, generate when it is
-                ready, or start something new.
-              </p>
-            </div>
-
-            <Link
-              href="/create"
-              className="btn-copper inline-flex w-full rounded-full px-6 py-3 text-xs uppercase tracking-[0.12em] sm:w-auto"
-            >
-              Start a new idea
-            </Link>
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="font-serif text-4xl font-semibold text-[var(--foreground)] sm:text-5xl">
+              My ideas
+            </h1>
+            <p className="mt-2 text-base text-[var(--muted)] sm:text-lg">
+              Pick up where you left off, or start something new.
+            </p>
           </div>
-        </section>
+          <Link
+            href="/create"
+            className="btn-copper inline-flex w-full rounded-full px-6 py-3 text-xs font-bold uppercase tracking-widest sm:w-auto"
+          >
+            New idea
+          </Link>
+        </div>
 
         {isLoading ? (
-          <div className="craft-card p-6 text-sm text-[var(--muted)] sm:p-8">
+          <p className="py-12 text-center text-sm text-[var(--muted)]">
             Checking your account...
-          </div>
+          </p>
         ) : isAuthenticated ? (
           <IdeasList />
         ) : (
-          <div className="craft-card p-6 text-sm text-[var(--muted)] sm:p-8">
+          <p className="py-12 text-center text-sm text-[var(--muted)]">
             Redirecting to sign in...
-          </div>
+          </p>
         )}
       </div>
     </main>
