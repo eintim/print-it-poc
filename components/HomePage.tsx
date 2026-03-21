@@ -120,21 +120,10 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="border-t border-[var(--line)] px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mx-auto flex max-w-7xl flex-col gap-5 md:flex-row md:items-center md:justify-between">
-          <p className="font-serif text-2xl font-bold italic text-[var(--accent)]">
-            Print It
+        <div className="mx-auto flex max-w-7xl justify-center">
+          <p className="text-center text-sm font-medium tracking-wide text-[var(--muted)]">
+            Made with ❤️ during the Cursor Hackathon Heilbronn 🚀
           </p>
-          <div className="flex flex-wrap gap-5 text-sm font-medium text-[var(--muted)]">
-            <Link href="/about" className="transition hover:text-[var(--accent)]">
-              Our story
-            </Link>
-            <Link href={ideasHref} className="transition hover:text-[var(--accent)]">
-              Saved ideas
-            </Link>
-            <Link href={createHref} className="transition hover:text-[var(--accent)]">
-              Start creating
-            </Link>
-          </div>
         </div>
       </footer>
     </main>
