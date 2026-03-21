@@ -1,5 +1,5 @@
-import WorkspaceClient from "@/components/WorkspaceClient";
+import HomePage from "@/components/HomePage";
 
 export default function Home() {
-  return <WorkspaceClient />;
+  return <HomePage />;
 }

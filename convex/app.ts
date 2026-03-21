@@ -1,4 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 
@@ -60,7 +61,7 @@ export const getWorkspace = query({
       .order("desc")
       .take(12);
 
-    const selectedSessionId = args.sessionId ?? sessions[0]?._id ?? null;
+    const selectedSessionId = args.sessionId ?? null;
     const selectedSession =
       selectedSessionId === null
         ? null
@@ -188,6 +189,21 @@ export const getSessionConversation = query({
       session,
       messages,
     };
+  },
+});
+
+export const listIdeas = query({
+  args: {
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUser(ctx);
+
+    return await ctx.db
+      .query("refinementSessions")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .paginate(args.paginationOpts);
   },
 });
 

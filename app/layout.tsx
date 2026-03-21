@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Newsreader, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
 import ConvexClientProvider from "@/components/ConvexClientProvider";
-const geistSans = Geist({
+const jakarta = Plus_Jakarta_Sans({
   variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const newsreader = Newsreader({
+  variable: "--font-newsreader",
   subsets: ["latin"],
 });
 
@@ -30,7 +35,7 @@ export default function RootLayout({
     <ConvexAuthNextjsServerProvider>
       <html lang="en">
         <body
-          className={`${geistSans.variable} ${geistMono.variable} bg-slate-950 antialiased`}
+          className={`${jakarta.variable} ${newsreader.variable} ${geistMono.variable} antialiased`}
         >
           <ConvexClientProvider>{children}</ConvexClientProvider>
         </body>

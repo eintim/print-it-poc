@@ -11,6 +11,33 @@ type Bounds = {
   depth: number;
 };
 
+function disposeMaterial(material: THREE.Material) {
+  const textureKeys = [
+    "map",
+    "alphaMap",
+    "aoMap",
+    "bumpMap",
+    "displacementMap",
+    "emissiveMap",
+    "envMap",
+    "lightMap",
+    "metalnessMap",
+    "normalMap",
+    "roughnessMap",
+  ] as const;
+  const materialWithTextures = material as THREE.Material &
+    Partial<Record<(typeof textureKeys)[number], THREE.Texture | null>>;
+
+  for (const key of textureKeys) {
+    const texture = materialWithTextures[key];
+    if (texture instanceof THREE.Texture) {
+      texture.dispose();
+    }
+  }
+
+  material.dispose();
+}
+
 export default function ModelViewer({
   modelUrl,
   onBoundsChange,
@@ -43,7 +70,7 @@ export default function ModelViewer({
     }
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color("#0b1020");
+    scene.background = new THREE.Color("#f8efe4");
 
     const camera = new THREE.PerspectiveCamera(
       45,
@@ -62,19 +89,21 @@ export default function ModelViewer({
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
-    const ambient = new THREE.AmbientLight("#ffffff", 1.4);
-    const keyLight = new THREE.DirectionalLight("#ffffff", 2.4);
+    const ambient = new THREE.AmbientLight("#fff7f1", 1.9);
+    const keyLight = new THREE.DirectionalLight("#ffffff", 2.8);
     keyLight.position.set(6, 8, 4);
-    const fillLight = new THREE.DirectionalLight("#8ec5ff", 1.2);
+    const fillLight = new THREE.DirectionalLight("#ffd3c5", 1.6);
     fillLight.position.set(-4, 3, -6);
-    scene.add(ambient, keyLight, fillLight);
+    const rimLight = new THREE.DirectionalLight("#d4ead7", 1.2);
+    rimLight.position.set(0, 5, -8);
+    scene.add(ambient, keyLight, fillLight, rimLight);
 
     const floor = new THREE.Mesh(
       new THREE.CircleGeometry(2.2, 64),
       new THREE.MeshStandardMaterial({
-        color: "#131c31",
-        roughness: 0.85,
-        metalness: 0.05,
+        color: "#eadbc9",
+        roughness: 0.92,
+        metalness: 0.02,
       }),
     );
     floor.rotation.x = -Math.PI / 2;
@@ -83,6 +112,7 @@ export default function ModelViewer({
 
     let frameId = 0;
     let disposed = false;
+    let loadedRoot: THREE.Object3D | null = null;
 
     const resizeObserver = new ResizeObserver(() => {
       if (!mount) {
@@ -107,6 +137,7 @@ export default function ModelViewer({
         setErrorState(null);
         setIsModelLoading(false);
         const root = gltf.scene;
+        loadedRoot = root;
         scene.add(root);
 
         const box = new THREE.Box3().setFromObject(root);
@@ -153,7 +184,23 @@ export default function ModelViewer({
       resizeObserver.disconnect();
       window.cancelAnimationFrame(frameId);
       controls.dispose();
+      if (loadedRoot) {
+        loadedRoot.traverse((object) => {
+          const mesh = object as THREE.Mesh;
+          mesh.geometry?.dispose();
+
+          if (Array.isArray(mesh.material)) {
+            for (const material of mesh.material) {
+              disposeMaterial(material);
+            }
+          } else if (mesh.material) {
+            disposeMaterial(mesh.material);
+          }
+        });
+      }
+      scene.clear();
       renderer.dispose();
+      renderer.forceContextLoss();
       mount.innerHTML = "";
     };
   }, [modelUrl, onBoundsChange]);
@@ -162,36 +209,36 @@ export default function ModelViewer({
 
   if (!modelUrl && !shouldShowLoader) {
     return (
-      <div className="flex h-[420px] items-center justify-center rounded-3xl border border-white/10 bg-slate-950/70 text-center text-sm text-slate-400">
+      <div className="flex h-[460px] items-center justify-center rounded-[2rem] bg-[linear-gradient(180deg,#fffdf9,#f6ede3)] px-8 text-center text-sm text-[var(--muted)]">
         Generate a model to preview it here.
       </div>
     );
   }
 
   return (
-    <div className="relative h-[420px] overflow-hidden rounded-3xl border border-white/10 bg-slate-950 shadow-2xl">
+    <div className="relative h-[460px] overflow-hidden rounded-[2rem] bg-[linear-gradient(180deg,#fffdf9,#f6ede3)]">
       {modelUrl ? <div ref={mountRef} className="h-full w-full" /> : null}
       {!modelUrl ? (
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.16),transparent_38%),linear-gradient(180deg,rgba(15,23,42,0.98),rgba(2,6,23,0.98))]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(253,125,104,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(71,102,82,0.12),transparent_32%),linear-gradient(180deg,#fffdf9,#f6ede3)]" />
       ) : null}
       {shouldShowLoader ? (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-slate-950/72 backdrop-blur-sm">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-[#fff8f1]/88 backdrop-blur-sm">
           <div className="relative flex h-24 w-24 items-center justify-center">
-            <div className="absolute h-24 w-24 rounded-full border border-cyan-300/20" />
-            <div className="absolute h-24 w-24 animate-ping rounded-full border border-cyan-300/30" />
-            <div className="h-16 w-16 animate-spin rounded-full border-4 border-cyan-300/25 border-t-cyan-300 shadow-[0_0_32px_rgba(34,211,238,0.35)]" />
-            <div className="absolute h-4 w-4 rounded-full bg-cyan-300 shadow-[0_0_24px_rgba(34,211,238,0.9)]" />
+            <div className="absolute h-24 w-24 rounded-full border border-[var(--accent-soft)]/20" />
+            <div className="absolute h-24 w-24 animate-ping rounded-full border border-[var(--accent-soft)]/35" />
+            <div className="h-16 w-16 animate-spin rounded-full border-4 border-[var(--accent)]/15 border-t-[var(--accent)] shadow-[0_0_32px_rgba(165,60,44,0.18)]" />
+            <div className="absolute h-4 w-4 rounded-full bg-[var(--accent-soft)] shadow-[0_0_24px_rgba(253,125,104,0.7)]" />
           </div>
           <div className="space-y-2 text-center">
-            <p className="text-sm font-medium tracking-[0.22em] text-cyan-100 uppercase">
+            <p className="text-sm font-semibold tracking-[0.22em] text-[var(--accent)] uppercase">
               {loadingLabel}
             </p>
             <div className="flex items-center justify-center gap-2">
-              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-cyan-300 [animation-delay:-0.3s]" />
-              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-cyan-200 [animation-delay:-0.15s]" />
-              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-cyan-100" />
+              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-[var(--accent)] [animation-delay:-0.3s]" />
+              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-[var(--accent-soft)] [animation-delay:-0.15s]" />
+              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-[var(--sage)]" />
             </div>
-            <p className="text-xs text-slate-300">
+            <p className="text-xs text-[var(--muted)]">
               {progress !== null && progress !== undefined
                 ? `${Math.max(progress, 0)}% complete`
                 : "Preparing the viewer..."}
@@ -200,7 +247,7 @@ export default function ModelViewer({
         </div>
       ) : null}
       {errorState?.modelUrl === modelUrl ? (
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-950/90 p-6 text-center text-sm text-rose-300">
+        <div className="absolute inset-0 flex items-center justify-center bg-[#fff8f1]/95 p-6 text-center text-sm text-[#b54b4b]">
           {errorState.message}
         </div>
       ) : null}

@@ -1,10 +1,18 @@
 "use client";
 
-import { useAuthActions } from "@convex-dev/auth/react";
 import type { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
 import ModelViewer from "@/components/ModelViewer";
 import PrintOrderForm from "@/components/PrintOrderForm";
+import SiteHeader from "@/components/SiteHeader";
+import {
+  MODEL_SIZE_OPTIONS,
+  estimatePrintPriceUsd,
+  formatUsd,
+  getModelSizeOption,
+  getScaledModelDimensions,
+  type ModelSizeId,
+} from "@/lib/app-config";
 import { useConvexAuth, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -29,6 +37,15 @@ type ViewerBounds = {
   height: number;
   depth: number;
 } | null;
+
+type WorkspaceScreen = "chat" | "model" | "order";
+
+const DEFAULT_PROMPT_SUGGESTIONS = [
+  "Make the silhouette cleaner and easier to print.",
+  "Add a friendly expression and rounded details.",
+  "Specify the pose, material feel, and finishing style.",
+  "Keep overhangs gentle so the model prints reliably.",
+];
 
 function jobLabel(status: string) {
   switch (status) {
@@ -80,14 +97,22 @@ async function readNdjsonStream(
   }
 }
 
-export default function WorkspaceClient() {
+export default function WorkspaceClient({
+  initialSessionId = null,
+  resetVersion = 0,
+  onStartOver,
+}: {
+  initialSessionId?: Id<"refinementSessions"> | null;
+  resetVersion?: number;
+  onStartOver?: () => void;
+}) {
   const router = useRouter();
   const { isLoading, isAuthenticated } = useConvexAuth();
-  const { signOut } = useAuthActions();
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const [activeScreen, setActiveScreen] = useState<WorkspaceScreen>("chat");
   const [selectedSessionId, setSelectedSessionId] =
-    useState<Id<"refinementSessions"> | null>(null);
-  const [creatingNewSession, setCreatingNewSession] = useState(false);
+    useState<Id<"refinementSessions"> | null>(initialSessionId);
+  const [selectedSize, setSelectedSize] = useState<ModelSizeId>("medium");
   const [chatInput, setChatInput] = useState("");
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
   const [streamingResponse, setStreamingResponse] = useState("");
@@ -129,25 +154,30 @@ export default function WorkspaceClient() {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/signin");
+      router.push("/signin?next=/create");
     }
   }, [isAuthenticated, isLoading, router]);
 
   useEffect(() => {
-    if (!creatingNewSession && !selectedSessionId && workspace?.selectedSession?._id) {
-      setSelectedSessionId(workspace.selectedSession._id);
+    if (!initialSessionId || selectedSessionId === initialSessionId) {
+      return;
     }
-  }, [creatingNewSession, selectedSessionId, workspace?.selectedSession?._id]);
+
+    resetTransientState();
+    setSelectedSessionId(initialSessionId);
+    setActiveScreen("chat");
+  }, [initialSessionId, resetTransientState, selectedSessionId]);
 
   useEffect(() => {
-    if (
-      creatingNewSession &&
-      selectedSessionId &&
-      rawWorkspace?.selectedSession?._id === selectedSessionId
-    ) {
-      setCreatingNewSession(false);
+    if (resetVersion === 0) {
+      return;
     }
-  }, [creatingNewSession, rawWorkspace?.selectedSession?._id, selectedSessionId]);
+
+    resetTransientState();
+    setSelectedSessionId(initialSessionId);
+    setSelectedSize("medium");
+    setActiveScreen("chat");
+  }, [initialSessionId, resetTransientState, resetVersion]);
 
   useEffect(() => {
     const currentJob = workspace?.currentJob;
@@ -214,13 +244,10 @@ export default function WorkspaceClient() {
     };
   }, [pollJobId]);
 
-  const activeSession = creatingNewSession ? null : workspace?.selectedSession ?? null;
-  const activeModel = creatingNewSession ? null : workspace?.currentModel ?? null;
-  const currentJob = creatingNewSession ? null : workspace?.currentJob ?? null;
-  const chatMessages = useMemo(
-    () => (creatingNewSession ? [] : workspace?.selectedMessages ?? []),
-    [creatingNewSession, workspace?.selectedMessages],
-  );
+  const activeSession = workspace?.selectedSession ?? null;
+  const activeModel = workspace?.currentModel ?? null;
+  const currentJob = workspace?.currentJob ?? null;
+  const chatMessages = useMemo(() => workspace?.selectedMessages ?? [], [workspace?.selectedMessages]);
   const canGenerate =
     activeSession !== null &&
     (activeSession.status === "ready" || activeSession.status === "generated") &&
@@ -240,15 +267,25 @@ export default function WorkspaceClient() {
   const previewLoadingLabel = isGeneratingPreview
     ? jobLabel(jobProgress.status)
     : "Loading 3D preview";
+  const selectedSizeOption = useMemo(
+    () => getModelSizeOption(selectedSize),
+    [selectedSize],
+  );
+  const scaledDimensions = useMemo(
+    () => getScaledModelDimensions(viewerBounds, selectedSizeOption.targetHeightMm),
+    [selectedSizeOption.targetHeightMm, viewerBounds],
+  );
+  const estimatedPriceUsd = useMemo(
+    () => estimatePrintPriceUsd(selectedSize, viewerBounds),
+    [selectedSize, viewerBounds],
+  );
   const tips = useMemo(() => {
-    if (creatingNewSession) {
-      return [];
-    }
     const assistantMessages = [...(workspace?.selectedMessages ?? [])]
       .reverse()
       .find((message) => message.role === "assistant");
     return assistantMessages?.tips ?? [];
-  }, [creatingNewSession, workspace?.selectedMessages]);
+  }, [workspace?.selectedMessages]);
+  const promptSuggestions = tips.length > 0 ? tips : DEFAULT_PROMPT_SUGGESTIONS;
 
   useEffect(() => {
     const chatContainer = chatScrollRef.current;
@@ -342,6 +379,7 @@ export default function WorkspaceClient() {
     }
 
     setPollError(null);
+    setActiveScreen("model");
     const response = await fetch("/api/generate", {
       method: "POST",
       headers: {
@@ -394,133 +432,164 @@ export default function WorkspaceClient() {
       }
 
       setOrderMessage(`Quote request ${data.orderId} created.`);
+      setActiveScreen("order");
     },
     [activeModel?._id],
   );
 
+  const handleSuggestionClick = useCallback((suggestion: string) => {
+    setChatInput((current) =>
+      current.trim() ? `${current.trim()}\n${suggestion}` : suggestion,
+    );
+  }, []);
+
   if (isLoading || !workspace) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-200">
+      <main className="flex min-h-screen items-center justify-center bg-[var(--background)] text-[var(--foreground)]">
         Loading workspace...
       </main>
     );
   }
 
+  const StepButton = ({
+    id,
+    label,
+    icon,
+    disabled = false,
+  }: {
+    id: WorkspaceScreen;
+    label: string;
+    icon: string;
+    disabled?: boolean;
+  }) => {
+    const isActive = activeScreen === id;
+    return (
+      <div className="relative flex flex-1 items-center justify-center">
+        {id !== "order" ? (
+          <div className="absolute left-[calc(50%+28px)] right-0 top-5 hidden h-px bg-[var(--line)] md:block" />
+        ) : null}
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => setActiveScreen(id)}
+          className={`relative z-10 flex flex-col items-center gap-2 text-center transition ${
+            disabled ? "cursor-not-allowed opacity-45" : ""
+          }`}
+        >
+          <div
+            className={`flex h-11 w-11 items-center justify-center rounded-full border text-sm font-semibold transition ${
+              isActive
+                ? "border-[var(--accent)] bg-[linear-gradient(135deg,var(--accent),var(--accent-soft))] text-white shadow-[0_10px_30px_rgba(165,60,44,0.18)]"
+                : "border-[var(--line)] bg-white text-[var(--muted)]"
+            }`}
+          >
+            {icon}
+          </div>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">
+            {label}
+          </span>
+        </button>
+      </div>
+    );
+  };
+
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#15203d,#020617_55%)] text-slate-100">
-      <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6 py-8">
-        <header className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-sm uppercase tracking-[0.24em] text-cyan-200">
-                Prompt to 3D print
-              </p>
-              <h1 className="mt-2 text-4xl font-semibold text-white">Print It 2</h1>
-              <p className="mt-3 max-w-2xl text-sm text-slate-300">
-                Refine a model prompt, generate it with Meshy, preview it in
-                Three.js, and request a print quote.
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-300">
-                {workspace.viewer ?? "Signed in"}
-              </div>
-              <button
-                className="rounded-2xl border border-white/10 px-4 py-3 text-sm text-slate-200 transition hover:bg-white/10"
-                onClick={() => {
-                  void signOut().then(() => router.push("/signin"));
-                }}
-              >
-                Sign out
-              </button>
+    <main className="min-h-screen bg-transparent text-[var(--foreground)]">
+      <SiteHeader />
+
+      <div className="mx-auto flex max-w-[1280px] flex-col gap-5 px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+        <section className="flex flex-col gap-4 rounded-[1.75rem] bg-[var(--panel)] p-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">
+              Create
+            </p>
+            <h1
+              className="mt-2 text-4xl font-semibold text-[var(--foreground)] sm:text-5xl"
+              style={{ fontFamily: "var(--font-newsreader), serif" }}
+            >
+              Build your next printable idea
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--muted)]">
+              Refine the prompt, generate the model, and prepare the final print
+              request from one workspace.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={onStartOver}
+              className="rounded-full border border-[var(--line)] bg-white px-4 py-2 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--paper)]"
+            >
+              Start over
+            </button>
+            <div className="rounded-full bg-white px-4 py-2 text-sm text-[var(--muted)]">
+              {workspace.viewer ?? "Signed in"}
             </div>
           </div>
-        </header>
+        </section>
 
-        <section className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)_380px]">
-          <aside className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-white">Sessions</h2>
-              <button
-                className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300"
-                onClick={() => {
-                  resetTransientState();
-                  setCreatingNewSession(true);
-                  setSelectedSessionId(null);
-                }}
-              >
-                New
-              </button>
-            </div>
-            <div className="space-y-3">
-              {workspace.sessions.map((session) => (
-                <button
-                  key={session._id}
-                  className={`w-full rounded-2xl border p-3 text-left transition ${
-                    activeSession?._id === session._id
-                      ? "border-cyan-400 bg-cyan-400/10"
-                      : "border-white/10 bg-slate-950/40 hover:bg-white/5"
-                  }`}
-                  onClick={() => {
-                    resetTransientState();
-                    setCreatingNewSession(false);
-                    setSelectedSessionId(session._id);
-                  }}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-medium text-white">{session.title}</p>
-                    <span className="text-xs uppercase tracking-wide text-cyan-200">
-                      {session.status}
-                    </span>
-                  </div>
-                  <p className="mt-2 line-clamp-2 text-sm text-slate-400">
-                    {session.latestPrompt || session.originalPrompt}
-                  </p>
-                </button>
-              ))}
-              {workspace.sessions.length === 0 ? (
-                <p className="rounded-2xl border border-dashed border-white/10 p-4 text-sm text-slate-400">
-                  Start with a rough idea. The refinement agent will guide the
-                  rest.
+        <section className="mx-auto flex max-w-3xl items-start justify-between gap-4">
+          <StepButton id="chat" icon="01" label="Create" />
+          <StepButton id="model" icon="02" label="Customize" disabled={!activeSession} />
+          <StepButton id="order" icon="03" label="Order" disabled={!activeModel} />
+        </section>
+
+        {activeScreen === "chat" ? (
+          <section className="grid gap-5 xl:grid-cols-[220px_minmax(0,1fr)_300px]">
+            <aside className="space-y-3 rounded-[1.75rem] bg-[var(--panel)] p-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">
+                  Prompt suggestions
                 </p>
-              ) : null}
-            </div>
-          </aside>
+                <h2
+                  className="mt-2 text-2xl font-semibold text-[var(--foreground)]"
+                  style={{ fontFamily: "var(--font-newsreader), serif" }}
+                >
+                  Refine
+                </h2>
+              </div>
+              <div className="space-y-3">
+                {promptSuggestions.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="w-full rounded-[1.25rem] bg-white px-4 py-3 text-left text-sm leading-6 text-[var(--foreground)] transition hover:bg-[var(--paper)]"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            </aside>
 
-          <section className="space-y-6">
-            <div className="flex min-h-[720px] flex-col rounded-3xl border border-white/10 bg-white/5">
-              <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/10 px-5 py-5">
+            <section className="flex min-h-[720px] flex-col rounded-[2rem] bg-white">
+              <div className="border-b border-[var(--line)] px-6 py-5">
                 <div>
-                  <h2 className="text-xl font-semibold text-white">Refinement chat</h2>
-                  <p className="mt-1 text-sm text-slate-400">
-                    Describe the object you want to print and refine it like a
-                    conversation until the prompt is ready.
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">
+                    Chat screen
                   </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-3 text-sm">
-                  <span className="rounded-full border border-white/10 px-3 py-1 text-slate-300">
-                    Status: {activeSession?.status ?? "draft"}
-                  </span>
-                  <span className="rounded-full border border-white/10 px-3 py-1 text-slate-300">
-                    Ready: {canGenerate ? "yes" : "not yet"}
-                  </span>
-                  {jobProgress ? (
-                    <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-cyan-100">
-                      {jobLabel(jobProgress.status)} · {jobProgress.progress}%
-                    </span>
-                  ) : null}
+                  <h2
+                    className="mt-2 text-4xl font-semibold text-[var(--foreground)]"
+                    style={{ fontFamily: "var(--font-newsreader), serif" }}
+                  >
+                    Prompt refinement chat
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+                    Describe your idea and refine it until it is ready.
+                  </p>
                 </div>
               </div>
 
               <div
                 ref={chatScrollRef}
-                className="flex-1 space-y-4 overflow-y-auto px-5 py-5"
+                className="flex-1 space-y-4 overflow-y-auto px-6 py-6"
               >
                 {chatMessages.length === 0 && !streamingResponse ? (
                   <div className="flex h-full min-h-64 items-center justify-center">
-                    <p className="max-w-md rounded-3xl border border-dashed border-white/10 px-5 py-4 text-center text-sm leading-6 text-slate-400">
-                      Start with a rough idea. The refinement agent will ask
-                      follow-up questions and shape it into a printable prompt.
+                    <p className="max-w-md text-center text-sm leading-7 text-[var(--muted)]">
+                      Start with a rough idea. The assistant will shape it into a
+                      printable prompt.
                     </p>
                   </div>
                 ) : null}
@@ -533,14 +602,14 @@ export default function WorkspaceClient() {
                     }`}
                   >
                     <div
-                      className={`max-w-[85%] rounded-[28px] border px-4 py-3 ${
+                      className={`max-w-[80%] rounded-[1.5rem] px-4 py-4 ${
                         message.role === "user"
-                          ? "border-cyan-400/30 bg-cyan-400/15 text-cyan-50"
-                          : "border-white/10 bg-slate-950/60 text-slate-100"
+                          ? "bg-[rgba(253,125,104,0.14)] text-[var(--foreground)]"
+                          : "bg-[var(--panel)] text-[var(--foreground)]"
                       }`}
                     >
-                      <p className="mb-2 text-[11px] uppercase tracking-[0.24em] text-slate-400">
-                        {message.role}
+                      <p className="mb-2 text-[10px] uppercase tracking-[0.24em] text-[var(--muted)]">
+                        {message.role === "user" ? "You" : "Assistant"}
                       </p>
                       <p className="whitespace-pre-wrap text-sm leading-6">
                         {message.content}
@@ -551,9 +620,9 @@ export default function WorkspaceClient() {
 
                 {pendingUserMessage ? (
                   <div className="flex justify-end">
-                    <div className="max-w-[85%] rounded-[28px] border border-cyan-400/30 bg-cyan-400/15 px-4 py-3 text-cyan-50">
-                      <p className="mb-2 text-[11px] uppercase tracking-[0.24em] text-slate-400">
-                        user
+                    <div className="max-w-[80%] rounded-[1.5rem] bg-[rgba(253,125,104,0.14)] px-4 py-4 text-[var(--foreground)]">
+                      <p className="mb-2 text-[10px] uppercase tracking-[0.24em] text-[var(--muted)]">
+                        You
                       </p>
                       <p className="whitespace-pre-wrap text-sm leading-6">
                         {pendingUserMessage}
@@ -564,9 +633,9 @@ export default function WorkspaceClient() {
 
                 {streamingResponse ? (
                   <div className="flex justify-start">
-                    <div className="max-w-[85%] rounded-[28px] border border-white/10 bg-slate-950/60 px-4 py-3 text-slate-100">
-                      <p className="mb-2 text-[11px] uppercase tracking-[0.24em] text-slate-400">
-                        assistant
+                    <div className="max-w-[80%] rounded-[1.5rem] bg-[var(--panel)] px-4 py-4 text-[var(--foreground)]">
+                      <p className="mb-2 text-[10px] uppercase tracking-[0.24em] text-[var(--muted)]">
+                        Assistant
                       </p>
                       <p className="whitespace-pre-wrap text-sm leading-6">
                         {streamingResponse}
@@ -576,101 +645,106 @@ export default function WorkspaceClient() {
                 ) : null}
               </div>
 
-              {tips.length > 0 ? (
-                <div className="border-t border-white/10 px-5 py-4">
-                  <div className="flex flex-wrap gap-2">
-                    {tips.map((tip) => (
-                      <span
-                        key={tip}
-                        className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300"
-                      >
-                        {tip}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="border-t border-white/10 px-5 py-5">
+              <div className="border-t border-[var(--line)] px-6 py-5">
                 <textarea
-                  className="min-h-32 w-full rounded-3xl border border-white/10 bg-slate-950/70 px-4 py-4 text-white outline-none placeholder:text-slate-500"
-                  placeholder="Tell the agent more about what you want to print..."
+                  className="min-h-28 w-full rounded-[1.5rem] bg-[var(--panel)] px-4 py-4 text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)]/70"
+                  placeholder="Tell the assistant more about what you want to print..."
                   value={chatInput}
                   onChange={(event) => setChatInput(event.target.value)}
                 />
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm text-slate-400">
-                    Chat with the agent and it will keep updating the refined idea.
-                  </p>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <button
-                      className="rounded-2xl border border-cyan-400/40 px-4 py-3 font-semibold text-cyan-100 transition hover:bg-cyan-400/10 disabled:cursor-not-allowed disabled:border-white/10 disabled:text-slate-500"
-                      onClick={() => {
-                        void handleGenerate();
-                      }}
-                      disabled={!canGenerate || isRefining}
-                    >
-                      Generate model
-                    </button>
-                    <button
-                      className="rounded-2xl bg-cyan-400 px-4 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
-                      onClick={() => {
-                        void handleRefine();
-                      }}
-                      disabled={isRefining}
-                    >
-                      {isRefining ? "Refining..." : "Send message"}
-                    </button>
-                  </div>
+                <div className="mt-4 flex items-center justify-end">
+                  <button
+                    className="rounded-full bg-[linear-gradient(135deg,var(--accent),var(--accent-soft))] px-6 py-3 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => {
+                      void handleRefine();
+                    }}
+                    disabled={isRefining}
+                  >
+                    {isRefining ? "Refining..." : "Send message"}
+                  </button>
                 </div>
                 {requestError ? (
-                  <p className="mt-4 rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+                  <p className="mt-4 rounded-[1.25rem] border border-[#e2b0a8] bg-[#fff2ef] px-4 py-3 text-sm text-[#b54b4b]">
                     {requestError}
                   </p>
                 ) : null}
                 {pollError ? (
-                  <p className="mt-4 rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+                  <p className="mt-4 rounded-[1.25rem] border border-[#e2b0a8] bg-[#fff2ef] px-4 py-3 text-sm text-[#b54b4b]">
                     {pollError}
                   </p>
                 ) : null}
               </div>
-            </div>
+            </section>
 
-          </section>
-
-          <aside className="space-y-6">
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+            <aside className="space-y-4 rounded-[1.75rem] bg-[var(--panel)] p-5">
               <div className="flex items-center justify-between gap-4">
-                <h2 className="text-lg font-semibold text-white">Current idea</h2>
-                <span className="rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-wide text-cyan-200">
-                  {canGenerate ? "ready" : "in progress"}
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">
+                    Final prompt
+                  </p>
+                  <h2
+                    className="mt-2 text-2xl font-semibold text-[var(--foreground)]"
+                    style={{ fontFamily: "var(--font-newsreader), serif" }}
+                  >
+                    Ready to generate
+                  </h2>
+                </div>
+                <span className="rounded-full bg-white px-3 py-1 text-xs uppercase tracking-wide text-[var(--accent)]">
+                  {canGenerate ? "ready" : "draft"}
                 </span>
               </div>
-              <p className="mt-2 text-sm text-slate-400">
-                This shows the latest refined prompt returned by the agent and
-                used for generation.
-              </p>
-              <div className="mt-4 rounded-3xl border border-white/10 bg-slate-950/60 p-4">
-                <p className="whitespace-pre-wrap text-sm leading-6 text-slate-100">
-                  {currentPrompt || "The agent's latest refined idea will appear here."}
+              <div className="rounded-[1.5rem] bg-white p-4">
+                <p className="whitespace-pre-wrap text-sm leading-6 text-[var(--foreground)]">
+                  {currentPrompt || "The assistant's latest refined idea will appear here."}
                 </p>
               </div>
-            </div>
+              <button
+                className="w-full rounded-full bg-[linear-gradient(135deg,var(--accent),var(--accent-soft))] px-4 py-3 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => {
+                  void handleGenerate();
+                }}
+                disabled={!canGenerate || isRefining}
+              >
+                Generate model
+              </button>
+            </aside>
+          </section>
+        ) : null}
 
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-white">3D preview</h2>
-                {previewDownloadUrl ? (
-                  <a
-                    href={previewDownloadUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sm text-cyan-200 underline underline-offset-4"
+        {activeScreen === "model" ? (
+          <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="space-y-5 rounded-[2rem] bg-white p-5">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">
+                    Model screen
+                  </p>
+                  <h2
+                    className="mt-2 text-4xl font-semibold text-[var(--foreground)]"
+                    style={{ fontFamily: "var(--font-newsreader), serif" }}
                   >
-                    Download STL
-                  </a>
-                ) : null}
+                    Preview your model
+                  </h2>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  {jobProgress ? (
+                    <span className="rounded-full bg-[var(--panel)] px-3 py-1 text-[var(--accent)]">
+                      {jobLabel(jobProgress.status)} · {jobProgress.progress}%
+                    </span>
+                  ) : null}
+                  {previewDownloadUrl ? (
+                    <a
+                      href={previewDownloadUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-full bg-[var(--panel)] px-3 py-1 text-[var(--foreground)] underline underline-offset-4"
+                    >
+                      Download STL
+                    </a>
+                  ) : null}
+                </div>
               </div>
+
               <ModelViewer
                 modelUrl={previewModelUrl}
                 onBoundsChange={setViewerBounds}
@@ -680,21 +754,171 @@ export default function WorkspaceClient() {
               />
             </div>
 
-            {activeModel ? (
-              <PrintOrderForm
-                disabled={false}
-                defaultEmail={workspace.viewer ?? ""}
-                modelBounds={viewerBounds}
-                onSubmit={handleOrderSubmit}
-              />
-            ) : null}
-            {orderMessage ? (
-              <p className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
-                {orderMessage}
-              </p>
-            ) : null}
-          </aside>
-        </section>
+            <aside className="space-y-4 rounded-[1.75rem] bg-[var(--panel)] p-5">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">
+                  Customization
+                </p>
+                <h3
+                  className="mt-2 text-2xl font-semibold text-[var(--foreground)]"
+                  style={{ fontFamily: "var(--font-newsreader), serif" }}
+                >
+                  Size and price
+                </h3>
+              </div>
+
+              <div className="grid gap-3">
+                {MODEL_SIZE_OPTIONS.map((option) => {
+                  const optionDimensions = getScaledModelDimensions(
+                    viewerBounds,
+                    option.targetHeightMm,
+                  );
+                  const optionPrice = estimatePrintPriceUsd(option.id, viewerBounds);
+                  return (
+                    <label
+                      key={option.id}
+                      className={`cursor-pointer rounded-[1.25rem] p-4 transition ${
+                        selectedSize === option.id
+                          ? "bg-white ring-1 ring-[var(--accent)]"
+                          : "bg-white/80"
+                      }`}
+                    >
+                      <input
+                        className="sr-only"
+                        type="radio"
+                        name="size"
+                        checked={selectedSize === option.id}
+                        onChange={() => setSelectedSize(option.id)}
+                      />
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-[var(--foreground)]">
+                            {option.label}
+                          </p>
+                          <p className="mt-1 text-sm text-[var(--muted)]">
+                            {option.description}
+                          </p>
+                        </div>
+                        <p className="text-sm font-semibold text-[var(--accent)]">
+                          {formatUsd(optionPrice)}
+                        </p>
+                      </div>
+                      <p className="mt-3 text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
+                        {optionDimensions
+                          ? `${optionDimensions.widthMm} x ${optionDimensions.heightMm} x ${optionDimensions.depthMm} mm`
+                          : `${option.targetHeightMm} mm target height`}
+                      </p>
+                    </label>
+                  );
+                })}
+              </div>
+
+              <div className="rounded-[1.5rem] bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
+                  Price
+                </p>
+                <p className="mt-2 text-4xl font-semibold text-[var(--accent)]">
+                  {formatUsd(estimatedPriceUsd)}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+                  {scaledDimensions
+                    ? `Approx. ${scaledDimensions.widthMm} x ${scaledDimensions.heightMm} x ${scaledDimensions.depthMm} mm once printed.`
+                    : "Sizing and price will refine once the model preview finishes loading."}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => setActiveScreen("chat")}
+                  className="rounded-full bg-white px-4 py-3 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--paper)]"
+                >
+                  Back to chat
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveScreen("order")}
+                  disabled={!activeModel}
+                  className="flex-1 rounded-full bg-[linear-gradient(135deg,var(--accent),var(--accent-soft))] px-4 py-3 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Continue
+                </button>
+              </div>
+            </aside>
+          </section>
+        ) : null}
+
+        {activeScreen === "order" ? (
+          <section className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
+            <aside className="space-y-4 rounded-[1.75rem] bg-[var(--panel)] p-5">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">
+                  Final order screen
+                </p>
+                <h2
+                  className="mt-2 text-2xl font-semibold text-[var(--foreground)]"
+                  style={{ fontFamily: "var(--font-newsreader), serif" }}
+                >
+                  Final review
+                </h2>
+              </div>
+
+              <div className="rounded-[1.5rem] bg-white p-4">
+                <p className="text-sm font-semibold text-[var(--foreground)]">
+                  {selectedSizeOption.label} · {selectedSizeOption.targetHeightMm} mm
+                </p>
+                <p className="mt-2 text-3xl font-semibold text-[var(--accent)]">
+                  {formatUsd(estimatedPriceUsd)}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+                  {scaledDimensions
+                    ? `Estimated footprint: ${scaledDimensions.widthMm} x ${scaledDimensions.heightMm} x ${scaledDimensions.depthMm} mm.`
+                    : "The viewer will provide exact scale once the model finishes loading."}
+                </p>
+              </div>
+
+              <div className="rounded-[1.5rem] bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
+                  Final prompt
+                </p>
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--foreground)]">
+                  {currentPrompt || "No prompt available yet."}
+                </p>
+              </div>
+
+              {orderMessage ? (
+                <div className="rounded-[1.5rem] border border-[#b5d5b7] bg-[#edf8ef] px-4 py-3 text-sm text-[#2f6c39]">
+                  {orderMessage}
+                </div>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={() => setActiveScreen("model")}
+                className="rounded-full bg-white px-4 py-3 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--paper)]"
+              >
+                Back to model screen
+              </button>
+            </aside>
+
+            <div>
+              {activeModel ? (
+                <PrintOrderForm
+                  disabled={false}
+                  defaultEmail={workspace.viewer ?? ""}
+                  size={selectedSize}
+                  estimatedPriceUsd={estimatedPriceUsd}
+                  onSubmit={handleOrderSubmit}
+                />
+              ) : (
+                <div className="rounded-[2rem] border border-[var(--line)] bg-[rgba(255,253,249,0.88)] p-8 text-sm leading-6 text-[var(--muted)] shadow-[0_24px_70px_rgba(93,64,43,0.08)]">
+                  Generate a model first, then come back here to submit the final
+                  order details.
+                </div>
+              )}
+            </div>
+          </section>
+        ) : null}
       </div>
     </main>
   );

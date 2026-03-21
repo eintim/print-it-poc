@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 export default function SignIn() {
@@ -10,6 +10,9 @@ export default function SignIn() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = searchParams.get("next");
+  const redirectTo = nextPath?.startsWith("/") ? nextPath : "/";
   return (
     <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_#15203d,_#020617_55%)] px-4">
       <div className="grid w-full max-w-5xl gap-8 lg:grid-cols-[1.1fr_480px]">
@@ -38,20 +41,19 @@ export default function SignIn() {
         </div>
       <form
         className="flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-slate-950/80 p-8 shadow-2xl"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
           setLoading(true);
           setError(null);
           const formData = new FormData(e.target as HTMLFormElement);
           formData.set("flow", flow);
-          void signIn("password", formData)
-            .catch((error) => {
-              setError(error.message);
-              setLoading(false);
-            })
-            .then(() => {
-              router.push("/");
-            });
+          try {
+            await signIn("password", formData);
+            router.push(redirectTo);
+          } catch (error) {
+            setError(error instanceof Error ? error.message : "Sign in failed.");
+            setLoading(false);
+          }
         }}
       >
         <div className="mb-2">
