@@ -15,7 +15,6 @@ import {
   type ModelSizeId,
 } from "@/lib/app-config";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type StreamEvent =
@@ -147,8 +146,7 @@ export default function WorkspaceClient({
   resetVersion?: number;
   onStartOver?: () => void;
 }) {
-  const router = useRouter();
-  const { isLoading, isAuthenticated } = useConvexAuth();
+  const { isLoading } = useConvexAuth();
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const [activeScreen, setActiveScreen] = useState<WorkspaceScreen>("chat");
   const [selectedSessionId, setSelectedSessionId] =
@@ -215,12 +213,6 @@ export default function WorkspaceClient({
   }, [rawWorkspace]);
 
   const workspace = rawWorkspace ?? cachedWorkspace;
-
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push("/signin?next=/create");
-    }
-  }, [isAuthenticated, isLoading, router]);
 
   useEffect(() => {
     if (!initialSessionId || selectedSessionId === initialSessionId) {

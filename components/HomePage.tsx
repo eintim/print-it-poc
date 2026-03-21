@@ -28,7 +28,7 @@ const FLOW = [
 
 export default function HomePage() {
   const { isAuthenticated } = useConvexAuth();
-  const createHref = isAuthenticated ? "/create" : "/signin?next=/create";
+  const createHref = "/create";
   const secondaryHref = isAuthenticated ? "/ideas" : "/showcase";
   const secondaryLabel = isAuthenticated ? "Browse my ideas" : "Show showcase";
 

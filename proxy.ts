@@ -5,9 +5,16 @@ import {
 } from "@convex-dev/auth/nextjs/server";
 
 const isSignInPage = createRouteMatcher(["/signin"]);
-const isProtectedRoute = createRouteMatcher(["/create", "/ideas", "/server"]);
+/** Logged-out users may only browse /, /showcase, /create, and /signin. */
+const isProtectedRoute = createRouteMatcher([
+  "/ideas",
+  "/orders",
+  "/about",
+  "/server",
+]);
 
-export default convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
+// Next.js 16+: use this file only — do not add `middleware.ts` (conflicts + wrong export shape).
+export const proxy = convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
   if (isSignInPage(request) && (await convexAuth.isAuthenticated())) {
     return nextjsMiddlewareRedirect(request, "/");
   }
@@ -19,6 +26,8 @@ export default convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
     );
   }
 });
+
+export default proxy;
 
 export const config = {
   // The following matcher runs middleware on all routes

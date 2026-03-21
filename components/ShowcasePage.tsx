@@ -1,6 +1,5 @@
 "use client";
 
-import { useConvexAuth } from "convex/react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
@@ -248,8 +247,7 @@ function ShowcaseCard({
 }
 
 export default function ShowcasePage() {
-  const { isAuthenticated } = useConvexAuth();
-  const createHref = isAuthenticated ? "/create" : "/signin?next=/create";
+  const createHref = "/create";
   const { ref: heroRef, visible: heroVisible } = useInView(0.05);
   const { ref: ctaRef, visible: ctaVisible } = useInView(0.1);
 

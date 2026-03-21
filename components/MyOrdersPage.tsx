@@ -225,7 +225,7 @@ export default function MyOrdersPage() {
             href="/create"
             className="btn-copper inline-flex w-full rounded-full px-6 py-3 text-xs font-bold uppercase tracking-widest sm:w-auto"
           >
-            New quote
+            Create more
           </Link>
         </div>
 

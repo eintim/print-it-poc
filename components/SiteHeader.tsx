@@ -6,13 +6,19 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-const NAV_ITEMS = [
+const NAV_ITEMS_AUTHENTICATED = [
   { href: "/", label: "Home" },
   { href: "/showcase", label: "Showcase" },
   { href: "/ideas", label: "My Ideas" },
   { href: "/orders", label: "My Orders" },
   { href: "/create", label: "Create" },
   { href: "/about", label: "About" },
+];
+
+const NAV_ITEMS_GUEST = [
+  { href: "/", label: "Home" },
+  { href: "/showcase", label: "Showcase" },
+  { href: "/create", label: "Create" },
 ];
 
 function isActivePath(pathname: string, href: string) {
@@ -27,9 +33,10 @@ export default function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  const createHref = isAuthenticated ? "/create" : "/signin?next=/create";
-  const ideasHref = isAuthenticated ? "/ideas" : "/signin?next=/ideas";
-  const ordersHref = isAuthenticated ? "/orders" : "/signin?next=/orders";
+  const navItems = isAuthenticated ? NAV_ITEMS_AUTHENTICATED : NAV_ITEMS_GUEST;
+  const ideasHref = "/ideas";
+  const ordersHref = "/orders";
+  const createHref = "/create";
 
   useEffect(() => {
     setMenuOpen(false);
@@ -58,21 +65,13 @@ export default function SiteHeader() {
         </Link>
 
         <nav className="hidden items-center gap-0.5 md:flex">
-          {NAV_ITEMS.map((item) => {
-            const href =
-              item.href === "/ideas"
-                ? ideasHref
-                : item.href === "/orders"
-                  ? ordersHref
-                  : item.href === "/create"
-                    ? createHref
-                    : item.href;
+          {navItems.map((item) => {
             const isActive = isActivePath(pathname, item.href);
 
             return (
               <Link
                 key={item.href}
-                href={href}
+                href={item.href}
                 className={`relative rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-all duration-200 ${
                   isActive
                     ? "text-[var(--accent)]"
