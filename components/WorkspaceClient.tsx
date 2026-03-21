@@ -135,6 +135,7 @@ export default function WorkspaceClient({
   const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const chatTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const [textStartActive, setTextStartActive] = useState(false);
 
   const generateAttachmentUploadUrl = useMutation(api.app.generateRefinementAttachmentUploadUrl);
 
@@ -161,6 +162,7 @@ export default function WorkspaceClient({
     setJobProgress(null);
     setViewerPrintMetrics(null);
     setOrderMessage(null);
+    setTextStartActive(false);
     clearAttachment();
   }, [clearAttachment]);
 
@@ -505,16 +507,25 @@ export default function WorkspaceClient({
     );
   }, []);
 
-  const focusChatComposer = useCallback(() => {
-    const node = chatTextareaRef.current;
-    if (!node) {
+  const hasMessages = chatMessages.length > 0 || !!streamingResponse || !!pendingUserMessage;
+  const hasAttachment = Boolean(attachmentFile);
+  const showStarterCards = !hasMessages && !hasAttachment && !textStartActive;
+  const showChatComposer = hasMessages || textStartActive || hasAttachment;
+
+  useEffect(() => {
+    if (!textStartActive || !showChatComposer || hasMessages) {
       return;
     }
-    node.focus({ preventScroll: false });
-    node.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, []);
-
-  const hasMessages = chatMessages.length > 0 || !!streamingResponse || !!pendingUserMessage;
+    const frame = requestAnimationFrame(() => {
+      const node = chatTextareaRef.current;
+      if (!node) {
+        return;
+      }
+      node.focus({ preventScroll: false });
+      node.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [textStartActive, showChatComposer, hasMessages]);
 
   return (
     <main className="flex h-screen flex-col overflow-hidden bg-transparent text-[var(--foreground)]">
@@ -585,12 +596,31 @@ export default function WorkspaceClient({
           <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] gap-4 overflow-y-auto xl:overflow-hidden xl:grid-cols-[minmax(0,1fr)_280px]">
             {/* Main chat panel */}
             <section className="flex min-h-[320px] flex-col overflow-hidden rounded-2xl bg-white shadow-[var(--shadow)] xl:min-h-0">
+              <input
+                ref={attachmentInputRef}
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) {
+                    return;
+                  }
+                  setAttachmentPreviewUrl((previous) => {
+                    if (previous) {
+                      URL.revokeObjectURL(previous);
+                    }
+                    return URL.createObjectURL(file);
+                  });
+                  setAttachmentFile(file);
+                }}
+              />
               {/* Messages */}
               <div
                 ref={chatScrollRef}
                 className="custom-scrollbar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 py-5"
               >
-                {!hasMessages ? (
+                {showStarterCards ? (
                   <div className="grain relative flex min-h-[min(420px,55vh)] flex-1 flex-col justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#fffdf9] via-[var(--cream)] to-[rgba(22,101,52,0.06)] px-4 py-10 sm:px-8">
                     <div
                       className="pointer-events-none absolute -right-16 top-1/2 h-72 w-72 -translate-y-1/2 rounded-full bg-[rgba(194,65,12,0.07)] blur-3xl"
@@ -608,8 +638,8 @@ export default function WorkspaceClient({
                         How do you want to begin?
                       </h3>
                       <p className="animate-fade-up delay-2 mx-auto mt-3 max-w-md text-center text-sm leading-relaxed text-[var(--muted)]">
-                        Choose a starting point. You can combine words and a reference anytime
-                        before you refine.
+                        Image path: these choices stay until you pick a file. Text path: jump into the
+                        composer and this panel closes — you can still attach an image below.
                       </p>
 
                       <div className="animate-fade-up delay-3 mt-10 grid gap-4 sm:grid-cols-2 sm:gap-5">
@@ -653,8 +683,8 @@ export default function WorkspaceClient({
                               Sketch or image
                             </span>
                             <span className="block text-sm leading-snug text-[var(--muted)]">
-                              Upload a doodle, photo, or reference. Add a note below if you like,
-                              then refine.
+                              These cards stay until you confirm a file. Then you can add a note
+                              and refine.
                             </span>
                           </span>
                           <span className="relative mt-1 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--sage)]">
@@ -670,7 +700,7 @@ export default function WorkspaceClient({
 
                         <button
                           type="button"
-                          onClick={focusChatComposer}
+                          onClick={() => setTextStartActive(true)}
                           className="group relative flex w-full flex-col items-start gap-4 overflow-hidden rounded-2xl border border-[rgba(194,65,12,0.22)] bg-gradient-to-br from-white/95 to-[rgba(253,125,104,0.08)] p-6 text-left shadow-[0_12px_40px_rgba(194,65,12,0.07)] transition duration-300 hover:-translate-y-0.5 hover:border-[rgba(194,65,12,0.38)] hover:shadow-[0_18px_48px_rgba(194,65,12,0.12)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
                         >
                           <span
@@ -699,12 +729,12 @@ export default function WorkspaceClient({
                               Start from text
                             </span>
                             <span className="block text-sm leading-snug text-[var(--muted)]">
-                              Describe shape, mood, or purpose in the composer. Attach an image
-                              later if you change your mind.
+                              Opens the composer and hides this screen so you can focus on your
+                              prompt. Add a reference image anytime with the image button.
                             </span>
                           </span>
                           <span className="relative mt-1 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--accent)]">
-                            Focus composer
+                            Continue
                             <span
                               className="inline-block transition-transform duration-300 group-hover:translate-x-0.5"
                               aria-hidden
@@ -805,96 +835,97 @@ export default function WorkspaceClient({
                 </div>
               ) : null}
 
-              {/* Input area */}
-              <div className="px-5 pt-2 pb-5">
-                {attachmentPreviewUrl ? (
-                  <div className="relative mb-3 inline-block max-w-full">
-                    <div className="overflow-hidden rounded-xl border border-[rgba(186,176,164,0.3)] bg-[var(--cream)]">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={attachmentPreviewUrl}
-                        alt="Attached reference"
-                        className="max-h-36 max-w-full object-contain"
-                      />
+              {/* Composer (hidden until a start path is chosen or the thread has messages) */}
+              {showChatComposer ? (
+                <div className="animate-fade-in border-t border-[rgba(186,176,164,0.18)] px-5 pt-4 pb-5">
+                  {!hasMessages ? (
+                    <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--muted)]">
+                          {hasAttachment
+                            ? "From sketch or image"
+                            : "From text"}
+                        </p>
+                        <p className="mt-1 text-sm text-[var(--foreground)]">
+                          {hasAttachment
+                            ? "Choose or change your reference, add an optional note, then refine."
+                            : "Describe your idea — attach a reference image anytime with the button."}
+                        </p>
+                      </div>
                     </div>
+                  ) : null}
+                  {attachmentPreviewUrl ? (
+                    <div className="relative mb-3 inline-block max-w-full">
+                      <div className="overflow-hidden rounded-xl border border-[rgba(186,176,164,0.3)] bg-[var(--cream)]">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={attachmentPreviewUrl}
+                          alt="Attached reference"
+                          className="max-h-36 max-w-full object-contain"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={clearAttachment}
+                        className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full border border-[var(--line)] bg-white text-xs font-bold text-[var(--muted)] shadow-sm transition hover:text-[var(--foreground)]"
+                        aria-label="Remove attached image"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : null}
+                  <div className="flex flex-wrap items-end gap-2 sm:flex-nowrap">
                     <button
                       type="button"
-                      onClick={clearAttachment}
-                      className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full border border-[var(--line)] bg-white text-xs font-bold text-[var(--muted)] shadow-sm transition hover:text-[var(--foreground)]"
-                      aria-label="Remove attached image"
+                      onClick={() => attachmentInputRef.current?.click()}
+                      disabled={isRefining}
+                      className="shrink-0 rounded-xl border border-[rgba(186,176,164,0.35)] bg-[var(--cream)] px-3 py-3 text-xs font-bold uppercase tracking-wide text-[var(--muted)] transition hover:border-[rgba(165,60,44,0.35)] hover:text-[var(--accent)] disabled:opacity-40"
                     >
-                      ×
+                      Image
+                    </button>
+                    <textarea
+                      ref={chatTextareaRef}
+                      className="min-h-[72px] min-w-0 flex-1 rounded-xl border border-[rgba(186,176,164,0.3)] bg-[var(--cream)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)]/60 focus:border-[rgba(165,60,44,0.3)]"
+                      placeholder={
+                        hasMessages
+                          ? "Describe your idea (optional if you attached an image)..."
+                          : hasAttachment
+                            ? "Optional: add context for your sketch or photo…"
+                            : "Describe shape, mood, material, or how it should print…"
+                      }
+                      value={chatInput}
+                      onChange={(event) => setChatInput(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && !event.shiftKey) {
+                          event.preventDefault();
+                          void handleRefine();
+                        }
+                      }}
+                    />
+                    <button
+                      className="btn-copper shrink-0 self-end rounded-xl px-5 py-3 text-sm"
+                      onClick={() => {
+                        void handleRefine();
+                      }}
+                      disabled={
+                        isRefining || (!chatInput.trim() && !attachmentFile)
+                      }
+                    >
+                      {isRefining ? (
+                        <span className="flex items-center gap-2">
+                          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                          Refining
+                        </span>
+                      ) : (
+                        "Refine"
+                      )}
                     </button>
                   </div>
-                ) : null}
-                <div className="flex flex-wrap items-end gap-2 sm:flex-nowrap">
-                  <input
-                    ref={attachmentInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="sr-only"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (!file) {
-                        return;
-                      }
-                      setAttachmentPreviewUrl((previous) => {
-                        if (previous) {
-                          URL.revokeObjectURL(previous);
-                        }
-                        return URL.createObjectURL(file);
-                      });
-                      setAttachmentFile(file);
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => attachmentInputRef.current?.click()}
-                    disabled={isRefining}
-                    className="shrink-0 rounded-xl border border-[rgba(186,176,164,0.35)] bg-[var(--cream)] px-3 py-3 text-xs font-bold uppercase tracking-wide text-[var(--muted)] transition hover:border-[rgba(165,60,44,0.35)] hover:text-[var(--accent)] disabled:opacity-40"
-                  >
-                    Image
-                  </button>
-                  <textarea
-                    ref={chatTextareaRef}
-                    className="min-h-[72px] min-w-0 flex-1 rounded-xl border border-[rgba(186,176,164,0.3)] bg-[var(--cream)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)]/60 focus:border-[rgba(165,60,44,0.3)]"
-                    placeholder={
-                      hasMessages
-                        ? "Describe your idea (optional if you attached an image)..."
-                        : "Type your idea here, or use the cards above to start with an image…"
-                    }
-                    value={chatInput}
-                    onChange={(event) => setChatInput(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && !event.shiftKey) {
-                        event.preventDefault();
-                        void handleRefine();
-                      }
-                    }}
-                  />
-                  <button
-                    className="btn-copper shrink-0 self-end rounded-xl px-5 py-3 text-sm"
-                    onClick={() => {
-                      void handleRefine();
-                    }}
-                    disabled={
-                      isRefining || (!chatInput.trim() && !attachmentFile)
-                    }
-                  >
-                    {isRefining ? (
-                      <span className="flex items-center gap-2">
-                        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                        Refining
-                      </span>
-                    ) : (
-                      "Refine"
-                    )}
-                  </button>
+                  {(requestError ?? pollError) ? (
+                    <p className="mt-2 text-xs text-[#b54b4b]">{requestError ?? pollError}</p>
+                  ) : null}
                 </div>
-                {(requestError ?? pollError) ? (
-                  <p className="mt-2 text-xs text-[#b54b4b]">{requestError ?? pollError}</p>
-                ) : null}
-              </div>
+              ) : null}
             </section>
 
             {/* Right sidebar: prompt + generate */}
