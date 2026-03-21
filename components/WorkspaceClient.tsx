@@ -503,9 +503,6 @@ export default function WorkspaceClient({
             >
               Start over
             </button>
-            <div className="rounded-full bg-[var(--panel)] px-4 py-2 text-sm text-[var(--muted)]">
-              {isWorkspaceLoading ? "Loading..." : (workspace.viewer ?? "Signed in")}
-            </div>
           </div>
         </div>
 
