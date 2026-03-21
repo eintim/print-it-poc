@@ -169,22 +169,6 @@ export async function createMeshyPreviewTask(prompt: string) {
   return response.result;
 }
 
-export async function createMeshyRefineTask(previewTaskId: string) {
-  if (getMeshyUseMock()) {
-    return buildMockTaskId("refine");
-  }
-
-  const response = await meshyRequest<MeshyCreateTaskResponse>("/openapi/v2/text-to-3d", {
-    method: "POST",
-    body: JSON.stringify({
-      mode: "refine",
-      preview_task_id: previewTaskId,
-    }),
-  });
-
-  return response.result;
-}
-
 export async function getMeshyTask(taskId: string) {
   if (getMeshyUseMock()) {
     return buildMockTask(taskId);
