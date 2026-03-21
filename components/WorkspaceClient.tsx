@@ -452,10 +452,10 @@ export default function WorkspaceClient({
   const hasMessages = chatMessages.length > 0 || !!streamingResponse || !!pendingUserMessage;
 
   return (
-    <main className="min-h-screen bg-transparent text-[var(--foreground)]">
+    <main className="flex h-screen flex-col overflow-hidden bg-transparent text-[var(--foreground)]">
       <SiteHeader />
 
-      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-0 max-w-6xl flex-1 flex-col gap-4 overflow-hidden px-4 py-4 sm:px-6 lg:px-8">
         {/* Compact workspace bar */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-1 rounded-full bg-[var(--panel)] p-1">
@@ -517,13 +517,13 @@ export default function WorkspaceClient({
 
         {/* ── Chat screen ── */}
         {!isWorkspaceLoading && activeScreen === "chat" ? (
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] gap-4 overflow-y-auto xl:overflow-hidden xl:grid-cols-[minmax(0,1fr)_280px]">
             {/* Main chat panel */}
-            <section className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-[var(--shadow)]">
+            <section className="flex min-h-[320px] flex-col overflow-hidden rounded-2xl bg-white shadow-[var(--shadow)] xl:min-h-0">
               {/* Messages */}
               <div
                 ref={chatScrollRef}
-                className="custom-scrollbar flex min-h-[420px] flex-1 flex-col gap-3 overflow-y-auto px-5 py-5"
+                className="custom-scrollbar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 py-5"
               >
                 {!hasMessages ? (
                   <div className="flex flex-1 flex-col items-center justify-center px-4 py-8 text-center">
@@ -684,7 +684,7 @@ export default function WorkspaceClient({
 
         {/* ── Model / Customize screen ── */}
         {!isWorkspaceLoading && activeScreen === "model" ? (
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto xl:grid-cols-[minmax(0,1fr)_300px]">
             <div className="overflow-hidden rounded-2xl bg-white shadow-[var(--shadow)]">
               <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
                 <div className="flex items-center gap-3">
@@ -805,7 +805,7 @@ export default function WorkspaceClient({
 
         {/* ── Order screen ── */}
         {!isWorkspaceLoading && activeScreen === "order" ? (
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto xl:grid-cols-[minmax(0,1fr)_280px]">
             <div>
               {activeModel ? (
                 <PrintOrderForm
