@@ -283,3 +283,56 @@ textarea {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(194, 65, 12, 0.28);
 }
+
+/* Showcase */
+
+.showcase-card {
+  position: relative;
+  background: var(--paper);
+  border: 1.5px solid var(--line);
+  border-radius: 1rem;
+  padding: 1.75rem 1.5rem 1.25rem;
+  box-shadow: var(--shadow-sm);
+  transform: rotate(var(--card-rotation, 0deg));
+  opacity: 0;
+  translate: 0 30px;
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              translate 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.45s ease,
+              box-shadow 0.3s ease;
+  transition-delay: var(--card-delay, 0s);
+}
+
+.showcase-card--visible {
+  opacity: 1;
+  translate: 0 0;
+}
+
+.showcase-card:hover {
+  transform: rotate(0deg) translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--card-accent, var(--line-strong));
+  z-index: 2;
+}
+
+.tape-strip {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  translate: -50% 0;
+  width: 48px;
+  height: 14px;
+  background: rgba(194, 65, 12, 0.12);
+  border-radius: 0 0 4px 4px;
+  transform: rotate(-1.5deg);
+}
+
+.showcase-card:nth-child(even) .tape-strip {
+  background: rgba(22, 101, 52, 0.1);
+  transform: rotate(2deg);
+}
+
+.showcase-card:nth-child(3n) .tape-strip {
+  background: rgba(124, 58, 237, 0.1);
+  transform: rotate(-0.5deg);
+}
