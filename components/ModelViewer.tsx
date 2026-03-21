@@ -48,8 +48,8 @@ export default function ModelViewer({
   isGenerating?: boolean;
   loadingLabel?: string;
   progress?: number | null;
-  /** `embed`: fills a parent with fixed aspect (e.g. showcase cards); `workspace`: full preview panel. */
-  layout?: "workspace" | "embed";
+  /** `embed`: fills a parent with fixed aspect (e.g. showcase cards); `workspace`: full preview panel; `checkout`: short strip, no min-height (respects parent). */
+  layout?: "workspace" | "embed" | "checkout";
 }) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const [errorState, setErrorState] = useState<{
@@ -178,7 +178,15 @@ export default function ModelViewer({
         camera.position.copy(placedCenter).add(camOffset);
         controls.update();
 
-        if (layout === "workspace") {
+        if (layout === "checkout") {
+          const aspect = mount.clientWidth / Math.max(mount.clientHeight, 1);
+          const distanceMult = 1 + Math.min(0.2, Math.max(0, aspect - 1) * 0.1);
+          const fromCenter = camera.position.clone().sub(placedCenter).multiplyScalar(distanceMult);
+          camera.position.copy(placedCenter).add(fromCenter);
+          controls.update();
+        }
+
+        if (layout === "workspace" || layout === "checkout") {
           const { triangleCount, solidVolumeModelUnits3 } =
             computeMeshPrintStats(root);
 
@@ -246,6 +254,13 @@ export default function ModelViewer({
     if (layout === "embed") {
       return null;
     }
+    if (layout === "checkout") {
+      return (
+        <div className="flex h-full min-h-[96px] w-full items-center justify-center bg-gradient-to-b from-[var(--cream)] to-[var(--panel)] px-4 text-center text-xs text-[var(--muted)]">
+          Model preview will appear here.
+        </div>
+      );
+    }
     return (
       <div className="flex min-h-[460px] flex-1 items-center justify-center rounded-2xl bg-gradient-to-b from-[var(--cream)] to-[var(--panel)] px-8 text-center text-sm text-[var(--muted)]">
         Generate a model to preview it here.
@@ -254,7 +269,7 @@ export default function ModelViewer({
   }
 
   const shellClass =
-    layout === "embed"
+    layout === "embed" || layout === "checkout"
       ? "relative h-full min-h-0 w-full overflow-hidden bg-gradient-to-b from-[var(--cream)] to-[var(--panel)]"
       : "relative h-full min-h-[460px] overflow-hidden rounded-2xl bg-gradient-to-b from-[var(--cream)] to-[var(--panel)]";
 

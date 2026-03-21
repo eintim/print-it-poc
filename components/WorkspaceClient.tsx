@@ -3,7 +3,7 @@
 import type { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
 import ModelViewer from "@/components/ModelViewer";
-import PrintOrderForm from "@/components/PrintOrderForm";
+import WorkspaceOrderStep from "@/components/WorkspaceOrderStep";
 import SiteHeader from "@/components/SiteHeader";
 import {
   MODEL_SIZE_OPTIONS,
@@ -167,7 +167,7 @@ export default function WorkspaceClient({
   } | null>(null);
   const [viewerPrintMetrics, setViewerPrintMetrics] =
     useState<ModelPrintMetrics>(null);
-  const [orderMessage, setOrderMessage] = useState<string | null>(null);
+  const [confirmedOrderId, setConfirmedOrderId] = useState<string | null>(null);
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
@@ -198,7 +198,7 @@ export default function WorkspaceClient({
     setPollError(null);
     setJobProgress(null);
     setViewerPrintMetrics(null);
-    setOrderMessage(null);
+    setConfirmedOrderId(null);
     setTextStartActive(false);
     clearAttachment();
   }, [clearAttachment]);
@@ -578,7 +578,7 @@ export default function WorkspaceClient({
         throw new Error(data.error || "Could not create the quote request.");
       }
 
-      setOrderMessage(`Quote request ${data.orderId} created.`);
+      setConfirmedOrderId(String(data.orderId));
       setActiveScreen("order");
     },
     [activeModel?._id],
@@ -1348,74 +1348,27 @@ export default function WorkspaceClient({
 
         {/* ── Order screen ── */}
         {!isWorkspaceLoading && activeScreen === "order" ? (
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto xl:flex-row xl:overflow-hidden">
-            <div className="flex min-h-[320px] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-[var(--shadow)] xl:min-h-0">
-              <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-                <h2 className="font-serif text-xl font-semibold text-[var(--foreground)]">
-                  Place order
-                </h2>
-              </div>
-
-              <div className="flex min-h-0 flex-1 flex-col px-5 pb-5">
-                {activeModel ? (
-                  <PrintOrderForm
-                    embedded
-                    disabled={false}
-                    defaultEmail={workspace?.viewer ?? ""}
-                    size={selectedSize}
-                    estimatedPriceUsd={estimatedPriceUsd}
-                    onSubmit={handleOrderSubmit}
-                  />
-                ) : (
-                  <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border border-[var(--line)]/30 bg-[var(--cream)] px-6 py-10 text-center text-sm text-[var(--muted)]">
-                    Generate a model first, then come back here to submit the final order details.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <aside className="flex w-full shrink-0 flex-col gap-3 xl:w-[280px]">
-              <div className="rounded-2xl bg-white p-4 shadow-[0_8px_24px_rgba(93,64,43,0.06)]">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
-                  Order summary
-                </p>
-                <p className="mt-2 text-sm font-bold text-[var(--foreground)]">
-                  {selectedSizeOption.label} · {selectedSizeOption.targetHeightMm} mm
-                </p>
-                <p className="mt-1 font-serif text-2xl font-semibold text-[var(--accent)]">
-                  {formatUsd(estimatedPriceUsd)}
-                </p>
-                {scaledDimensions ? (
-                  <p className="mt-2 text-xs text-[var(--muted)]">
-                    {scaledDimensions.widthMm} × {scaledDimensions.heightMm} × {scaledDimensions.depthMm} mm
-                  </p>
-                ) : null}
-              </div>
-
-              <div className="rounded-2xl bg-white p-4 shadow-[0_8px_24px_rgba(93,64,43,0.06)]">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
-                  Prompt
-                </p>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-[var(--foreground)]">
-                  {currentPrompt || "No prompt yet."}
-                </p>
-              </div>
-
-              {orderMessage ? (
-                <div className="rounded-xl border border-[#b5d5b7] bg-[#edf8ef] px-4 py-3 text-sm text-[#2f6c39]">
-                  {orderMessage}
-                </div>
-              ) : null}
-
-              <button
-                type="button"
-                onClick={() => setActiveScreen("model")}
-                className="rounded-xl border border-[var(--line)] px-4 py-3 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--cream)]"
-              >
-                Back to customize
-              </button>
-            </aside>
-          </div>
+          <WorkspaceOrderStep
+            hasModel={!!activeModel}
+            modelPreviewUrl={previewModelUrl}
+            previewLoadingLabel={previewLoadingLabel}
+            isGeneratingPreview={isGeneratingPreview}
+            jobProgressPercent={jobProgress?.progress ?? null}
+            stlDownloadUrl={previewDownloadUrl}
+            defaultEmail={workspace?.viewer ?? ""}
+            selectedSize={selectedSize}
+            estimatedPriceUsd={estimatedPriceUsd}
+            scaledDimensions={scaledDimensions}
+            currentPrompt={currentPrompt}
+            confirmedOrderId={confirmedOrderId}
+            onPrintMetricsChange={setViewerPrintMetrics}
+            onSubmit={handleOrderSubmit}
+            onBack={() => {
+              setConfirmedOrderId(null);
+              setActiveScreen("model");
+            }}
+            onNewQuote={() => setConfirmedOrderId(null)}
+          />
         ) : null}
       </div>
     </main>

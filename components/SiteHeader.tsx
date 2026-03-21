@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: "/", label: "Home" },
   { href: "/showcase", label: "Showcase" },
   { href: "/ideas", label: "My Ideas" },
+  { href: "/orders", label: "My Orders" },
   { href: "/create", label: "Create" },
   { href: "/about", label: "About" },
 ];
@@ -28,6 +29,7 @@ export default function SiteHeader() {
 
   const createHref = isAuthenticated ? "/create" : "/signin?next=/create";
   const ideasHref = isAuthenticated ? "/ideas" : "/signin?next=/ideas";
+  const ordersHref = isAuthenticated ? "/orders" : "/signin?next=/orders";
 
   useEffect(() => {
     setMenuOpen(false);
@@ -60,9 +62,11 @@ export default function SiteHeader() {
             const href =
               item.href === "/ideas"
                 ? ideasHref
-                : item.href === "/create"
-                  ? createHref
-                  : item.href;
+                : item.href === "/orders"
+                  ? ordersHref
+                  : item.href === "/create"
+                    ? createHref
+                    : item.href;
             const isActive = isActivePath(pathname, item.href);
 
             return (
@@ -114,6 +118,12 @@ export default function SiteHeader() {
                 className="block rounded-lg px-3 py-2 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--cream)]"
               >
                 My Ideas
+              </Link>
+              <Link
+                href={ordersHref}
+                className="block rounded-lg px-3 py-2 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--cream)]"
+              >
+                My Orders
               </Link>
               <Link
                 href={createHref}

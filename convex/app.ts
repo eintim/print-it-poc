@@ -309,6 +309,38 @@ export const listIdeas = query({
   },
 });
 
+export const listMyPrintOrders = query({
+  args: {
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUser(ctx);
+    const paginated = await ctx.db
+      .query("printOrders")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .paginate(args.paginationOpts);
+
+    const page = await Promise.all(
+      paginated.page.map(async (order) => {
+        const session = await ctx.db.get(order.sessionId);
+        const model = await ctx.db.get(order.generatedModelId);
+        return {
+          ...order,
+          sessionTitle: session?.title ?? "Untitled",
+          modelPrompt: model?.prompt ?? "",
+          thumbnailUrl: model?.thumbnailUrl ?? null,
+        };
+      }),
+    );
+
+    return {
+      ...paginated,
+      page,
+    };
+  },
+});
+
 export const generateRefinementAttachmentUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
