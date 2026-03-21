@@ -1,4 +1,4 @@
-import { fetchMutation, fetchQuery } from "convex/nextjs";
+import { fetchAction, fetchMutation, fetchQuery } from "convex/nextjs";
 import { z } from "zod";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -12,10 +12,21 @@ import {
 } from "@/lib/server/refinement";
 import { requireRouteToken, routeErrorResponse } from "@/lib/server/route-utils";
 
-const refineRequestSchema = z.object({
-  sessionId: z.string().nullable(),
-  message: z.string().min(1).max(600),
-});
+const refineRequestSchema = z
+  .object({
+    sessionId: z.string().nullable(),
+    message: z.string().max(2000),
+    attachmentStorageId: z.string().min(1).optional().nullable(),
+    attachmentContentType: z.string().max(120).optional().nullable(),
+  })
+  .refine(
+    (data) =>
+      data.message.trim().length > 0 ||
+      (data.attachmentStorageId !== null &&
+        data.attachmentStorageId !== undefined &&
+        data.attachmentStorageId.length > 0),
+    { message: "Add a message or attach a reference image or sketch." },
+  );
 
 function streamLine(payload: unknown) {
   return `${JSON.stringify(payload)}\n`;
@@ -26,17 +37,30 @@ export async function POST(request: Request) {
     const token = await requireRouteToken();
     const body = refineRequestSchema.parse(await request.json());
 
+    const attachmentStorageId =
+      body.attachmentStorageId && body.attachmentStorageId.length > 0
+        ? (body.attachmentStorageId as Id<"_storage">)
+        : undefined;
+
     const started = await fetchMutation(
       api.app.beginRefinementTurn,
       {
         sessionId: body.sessionId as Id<"refinementSessions"> | null,
         message: body.message.trim(),
+        attachmentStorageId,
+        attachmentContentType: body.attachmentContentType?.trim() || undefined,
       },
       { token },
     );
 
     const conversation = await fetchQuery(
       api.app.getSessionConversation,
+      { sessionId: started.sessionId },
+      { token },
+    );
+
+    const attachmentPayloads = await fetchAction(
+      api.app.loadRefinementAttachmentPayloads,
       { sessionId: started.sessionId },
       { token },
     );
@@ -48,14 +72,27 @@ export async function POST(request: Request) {
       conversation.session.latestPrompt,
     );
 
+    const historyMessages = conversation.messages.filter(
+      (message) => message.role === "user" || message.role === "assistant",
+    );
+
     const contents = toGeminiContents(
-      conversation.messages
-        .filter((message) => message.role === "user" || message.role === "assistant")
-        .map((message) => ({
+      historyMessages.map((message) => {
+        const payload =
+          message.role === "user" ? attachmentPayloads[message._id] : undefined;
+        return {
           role: message.role as "user" | "assistant",
           content: message.content,
-        })),
+          attachment: payload
+            ? { mimeType: payload.mimeType, base64: payload.base64 }
+            : null,
+        };
+      }),
     );
+
+    const fallbackUserText =
+      [...historyMessages].reverse().find((m) => m.role === "user")?.content?.trim() ||
+      body.message.trim();
 
     const response = await client.models.generateContentStream({
       model: getGeminiRefinementModel(),
@@ -115,7 +152,7 @@ export async function POST(request: Request) {
 
           const parsed = parseRefinementTranscript(
             transcript,
-            conversation.session.latestPrompt.trim() || body.message.trim(),
+            conversation.session.latestPrompt.trim() || fallbackUserText,
           );
 
           await fetchMutation(

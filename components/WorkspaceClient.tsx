@@ -14,7 +14,7 @@ import {
   type ModelPrintMetrics,
   type ModelSizeId,
 } from "@/lib/app-config";
-import { useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -34,6 +34,9 @@ type StreamEvent =
   | { type: "error"; error: string };
 
 type WorkspaceScreen = "chat" | "model" | "order";
+
+const REFINEMENT_IMAGE_ONLY_PLACEHOLDER =
+  "(Reference sketch or image attached — use it to infer shape, silhouette, and design intent.)";
 
 const DEFAULT_PROMPT_SUGGESTIONS = [
   "Cleaner silhouette for printing",
@@ -128,6 +131,25 @@ export default function WorkspaceClient({
   const [viewerPrintMetrics, setViewerPrintMetrics] =
     useState<ModelPrintMetrics>(null);
   const [orderMessage, setOrderMessage] = useState<string | null>(null);
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
+  const chatTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const generateAttachmentUploadUrl = useMutation(api.app.generateRefinementAttachmentUploadUrl);
+
+  const clearAttachment = useCallback(() => {
+    setAttachmentFile(null);
+    setAttachmentPreviewUrl((previous) => {
+      if (previous) {
+        URL.revokeObjectURL(previous);
+      }
+      return null;
+    });
+    if (attachmentInputRef.current) {
+      attachmentInputRef.current.value = "";
+    }
+  }, []);
 
   const resetTransientState = useCallback(() => {
     setChatInput("");
@@ -139,7 +161,8 @@ export default function WorkspaceClient({
     setJobProgress(null);
     setViewerPrintMetrics(null);
     setOrderMessage(null);
-  }, []);
+    clearAttachment();
+  }, [clearAttachment]);
 
   const rawWorkspace = useQuery(api.app.getWorkspace, {
     sessionId: selectedSessionId,
@@ -321,18 +344,42 @@ export default function WorkspaceClient({
 
   const handleRefine = useCallback(async () => {
     const trimmed = chatInput.trim();
-    if (!trimmed) {
-      setRequestError("Add a message before continuing refinement.");
+    if (!trimmed && !attachmentFile) {
+      setRequestError("Add a message or attach a reference image or sketch.");
       return;
     }
 
     setIsRefining(true);
     setChatInput("");
-    setPendingUserMessage(trimmed);
+    setPendingUserMessage(trimmed || REFINEMENT_IMAGE_ONLY_PLACEHOLDER);
     setStreamingResponse("");
     setRequestError(null);
 
+    const fileSnapshot = attachmentFile;
+
     try {
+      let attachmentStorageId: string | null = null;
+      let attachmentContentType: string | null = null;
+
+      if (fileSnapshot) {
+        const { uploadUrl } = await generateAttachmentUploadUrl();
+        const uploadResponse = await fetch(uploadUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": fileSnapshot.type || "application/octet-stream",
+          },
+          body: fileSnapshot,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error("Could not upload the image.");
+        }
+
+        const uploadJson = (await uploadResponse.json()) as { storageId: string };
+        attachmentStorageId = uploadJson.storageId;
+        attachmentContentType = fileSnapshot.type || "image/jpeg";
+      }
+
       const response = await fetch("/api/refine", {
         method: "POST",
         headers: {
@@ -341,6 +388,8 @@ export default function WorkspaceClient({
         body: JSON.stringify({
           sessionId: activeSession?._id ?? null,
           message: trimmed,
+          attachmentStorageId,
+          attachmentContentType,
         }),
       });
 
@@ -368,6 +417,7 @@ export default function WorkspaceClient({
         if (event.type === "final") {
           setPendingUserMessage(null);
           setStreamingResponse("");
+          clearAttachment();
         }
       });
     } catch (error) {
@@ -377,7 +427,13 @@ export default function WorkspaceClient({
     } finally {
       setIsRefining(false);
     }
-  }, [activeSession?._id, chatInput]);
+  }, [
+    activeSession?._id,
+    attachmentFile,
+    chatInput,
+    clearAttachment,
+    generateAttachmentUploadUrl,
+  ]);
 
   const handleGenerate = useCallback(async () => {
     if (!activeSession?._id) {
@@ -447,6 +503,15 @@ export default function WorkspaceClient({
     setChatInput((current) =>
       current.trim() ? `${current.trim()}\n${suggestion}` : suggestion,
     );
+  }, []);
+
+  const focusChatComposer = useCallback(() => {
+    const node = chatTextareaRef.current;
+    if (!node) {
+      return;
+    }
+    node.focus({ preventScroll: false });
+    node.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, []);
 
   const hasMessages = chatMessages.length > 0 || !!streamingResponse || !!pendingUserMessage;
@@ -526,15 +591,130 @@ export default function WorkspaceClient({
                 className="custom-scrollbar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 py-5"
               >
                 {!hasMessages ? (
-                  <div className="flex flex-1 flex-col items-center justify-center px-4 py-8 text-center">
-                    <div className="mb-5 h-12 w-12 rounded-full bg-[rgba(253,125,104,0.12)]" />
-                    <h3 className="font-serif text-3xl font-medium text-[var(--foreground)] sm:text-4xl">
-                      What shall we craft?
-                    </h3>
-                    <p className="mt-2 max-w-md text-sm leading-relaxed text-[var(--muted)]">
-                      Describe an object, mood, or scene. The assistant will refine it into
-                      a printable 3D prompt.
-                    </p>
+                  <div className="grain relative flex min-h-[min(420px,55vh)] flex-1 flex-col justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#fffdf9] via-[var(--cream)] to-[rgba(22,101,52,0.06)] px-4 py-10 sm:px-8">
+                    <div
+                      className="pointer-events-none absolute -right-16 top-1/2 h-72 w-72 -translate-y-1/2 rounded-full bg-[rgba(194,65,12,0.07)] blur-3xl"
+                      aria-hidden
+                    />
+                    <div
+                      className="pointer-events-none absolute -left-20 bottom-0 h-56 w-56 rounded-full bg-[rgba(22,101,52,0.08)] blur-3xl"
+                      aria-hidden
+                    />
+                    <div className="relative z-[2] mx-auto w-full max-w-2xl">
+                      <p className="animate-fade-up text-center text-[10px] font-bold uppercase tracking-[0.35em] text-[var(--muted)]">
+                        New idea
+                      </p>
+                      <h3 className="animate-fade-up delay-1 mt-3 text-center font-serif text-[1.65rem] font-semibold leading-tight tracking-tight text-[var(--foreground)] sm:text-4xl">
+                        How do you want to begin?
+                      </h3>
+                      <p className="animate-fade-up delay-2 mx-auto mt-3 max-w-md text-center text-sm leading-relaxed text-[var(--muted)]">
+                        Choose a starting point. You can combine words and a reference anytime
+                        before you refine.
+                      </p>
+
+                      <div className="animate-fade-up delay-3 mt-10 grid gap-4 sm:grid-cols-2 sm:gap-5">
+                        <button
+                          type="button"
+                          disabled={isRefining}
+                          onClick={() => attachmentInputRef.current?.click()}
+                          className="group relative flex w-full flex-col items-start gap-4 overflow-hidden rounded-2xl border border-[rgba(22,101,52,0.22)] bg-gradient-to-br from-white/90 to-[rgba(220,252,231,0.35)] p-6 text-left shadow-[0_12px_40px_rgba(22,101,52,0.06)] transition duration-300 hover:-translate-y-0.5 hover:border-[rgba(22,101,52,0.35)] hover:shadow-[0_18px_48px_rgba(22,101,52,0.1)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sage)] disabled:pointer-events-none disabled:opacity-45"
+                        >
+                          <span
+                            className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-[var(--sage-soft)]/50 transition-transform duration-500 group-hover:scale-110"
+                            aria-hidden
+                          />
+                          <span className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-[rgba(22,101,52,0.2)] bg-white/80 text-[var(--sage)] shadow-sm">
+                            <svg
+                              width="26"
+                              height="26"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                              aria-hidden
+                            >
+                              <path
+                                d="M4 16l4.5-5.5a1.5 1.5 0 012.4.15L15 18l3-3 3 3v3H4v-5z"
+                                stroke="currentColor"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                              <circle
+                                cx="8.5"
+                                cy="8.5"
+                                r="2"
+                                stroke="currentColor"
+                                strokeWidth="1.5"
+                              />
+                            </svg>
+                          </span>
+                          <span className="relative space-y-1.5">
+                            <span className="block font-serif text-lg font-semibold text-[var(--foreground)]">
+                              Sketch or image
+                            </span>
+                            <span className="block text-sm leading-snug text-[var(--muted)]">
+                              Upload a doodle, photo, or reference. Add a note below if you like,
+                              then refine.
+                            </span>
+                          </span>
+                          <span className="relative mt-1 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--sage)]">
+                            Choose file
+                            <span
+                              className="inline-block transition-transform duration-300 group-hover:translate-x-0.5"
+                              aria-hidden
+                            >
+                              →
+                            </span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={focusChatComposer}
+                          className="group relative flex w-full flex-col items-start gap-4 overflow-hidden rounded-2xl border border-[rgba(194,65,12,0.22)] bg-gradient-to-br from-white/95 to-[rgba(253,125,104,0.08)] p-6 text-left shadow-[0_12px_40px_rgba(194,65,12,0.07)] transition duration-300 hover:-translate-y-0.5 hover:border-[rgba(194,65,12,0.38)] hover:shadow-[0_18px_48px_rgba(194,65,12,0.12)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                        >
+                          <span
+                            className="absolute -right-8 -top-10 h-28 w-28 rotate-12 rounded-3xl bg-[rgba(253,125,104,0.15)] transition-transform duration-500 group-hover:rotate-6 group-hover:scale-105"
+                            aria-hidden
+                          />
+                          <span className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-[rgba(194,65,12,0.2)] bg-white/85 text-[var(--accent)] shadow-sm">
+                            <svg
+                              width="26"
+                              height="26"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                              aria-hidden
+                            >
+                              <path
+                                d="M6 8h12M6 12h9M6 16h6"
+                                stroke="currentColor"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                          </span>
+                          <span className="relative space-y-1.5">
+                            <span className="block font-serif text-lg font-semibold text-[var(--foreground)]">
+                              Start from text
+                            </span>
+                            <span className="block text-sm leading-snug text-[var(--muted)]">
+                              Describe shape, mood, or purpose in the composer. Attach an image
+                              later if you change your mind.
+                            </span>
+                          </span>
+                          <span className="relative mt-1 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--accent)]">
+                            Focus composer
+                            <span
+                              className="inline-block transition-transform duration-300 group-hover:translate-x-0.5"
+                              aria-hidden
+                            >
+                              →
+                            </span>
+                          </span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 ) : null}
 
@@ -555,6 +735,16 @@ export default function WorkspaceClient({
                       <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
                         {message.role === "user" ? "You" : "Assistant"}
                       </p>
+                      {"attachmentUrl" in message && message.attachmentUrl ? (
+                        <div className="mb-2 overflow-hidden rounded-xl border border-[rgba(186,176,164,0.25)] bg-[var(--cream)]">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={message.attachmentUrl}
+                            alt="Your reference or sketch"
+                            className="max-h-48 w-full object-contain"
+                          />
+                        </div>
+                      ) : null}
                       <p className="whitespace-pre-wrap text-sm leading-relaxed">
                         {message.content}
                       </p>
@@ -568,6 +758,16 @@ export default function WorkspaceClient({
                       <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
                         You
                       </p>
+                      {attachmentPreviewUrl ? (
+                        <div className="mb-2 overflow-hidden rounded-xl border border-[rgba(186,176,164,0.25)] bg-[var(--cream)]">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={attachmentPreviewUrl}
+                            alt="Uploading reference"
+                            className="max-h-48 w-full object-contain"
+                          />
+                        </div>
+                      ) : null}
                       <p className="whitespace-pre-wrap text-sm leading-relaxed">
                         {pendingUserMessage}
                       </p>
@@ -589,26 +789,80 @@ export default function WorkspaceClient({
                 ) : null}
               </div>
 
-              {/* Suggestion chips */}
-              <div className="flex flex-wrap gap-2 border-t border-[rgba(186,176,164,0.18)] px-5 pt-4 pb-2">
-                {promptSuggestions.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    type="button"
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    className="rounded-full border border-[var(--line)] px-3 py-1.5 text-xs text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
+              {/* Suggestion chips (hidden on empty chat so the two start paths stay primary) */}
+              {hasMessages ? (
+                <div className="flex flex-wrap gap-2 border-t border-[rgba(186,176,164,0.18)] px-5 pt-4 pb-2">
+                  {promptSuggestions.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className="rounded-full border border-[var(--line)] px-3 py-1.5 text-xs text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
 
               {/* Input area */}
               <div className="px-5 pt-2 pb-5">
-                <div className="flex gap-3">
+                {attachmentPreviewUrl ? (
+                  <div className="relative mb-3 inline-block max-w-full">
+                    <div className="overflow-hidden rounded-xl border border-[rgba(186,176,164,0.3)] bg-[var(--cream)]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={attachmentPreviewUrl}
+                        alt="Attached reference"
+                        className="max-h-36 max-w-full object-contain"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={clearAttachment}
+                      className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full border border-[var(--line)] bg-white text-xs font-bold text-[var(--muted)] shadow-sm transition hover:text-[var(--foreground)]"
+                      aria-label="Remove attached image"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : null}
+                <div className="flex flex-wrap items-end gap-2 sm:flex-nowrap">
+                  <input
+                    ref={attachmentInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (!file) {
+                        return;
+                      }
+                      setAttachmentPreviewUrl((previous) => {
+                        if (previous) {
+                          URL.revokeObjectURL(previous);
+                        }
+                        return URL.createObjectURL(file);
+                      });
+                      setAttachmentFile(file);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => attachmentInputRef.current?.click()}
+                    disabled={isRefining}
+                    className="shrink-0 rounded-xl border border-[rgba(186,176,164,0.35)] bg-[var(--cream)] px-3 py-3 text-xs font-bold uppercase tracking-wide text-[var(--muted)] transition hover:border-[rgba(165,60,44,0.35)] hover:text-[var(--accent)] disabled:opacity-40"
+                  >
+                    Image
+                  </button>
                   <textarea
-                    className="min-h-[72px] flex-1 rounded-xl border border-[rgba(186,176,164,0.3)] bg-[var(--cream)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)]/60 focus:border-[rgba(165,60,44,0.3)]"
-                    placeholder="Describe your idea..."
+                    ref={chatTextareaRef}
+                    className="min-h-[72px] min-w-0 flex-1 rounded-xl border border-[rgba(186,176,164,0.3)] bg-[var(--cream)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)]/60 focus:border-[rgba(165,60,44,0.3)]"
+                    placeholder={
+                      hasMessages
+                        ? "Describe your idea (optional if you attached an image)..."
+                        : "Type your idea here, or use the cards above to start with an image…"
+                    }
                     value={chatInput}
                     onChange={(event) => setChatInput(event.target.value)}
                     onKeyDown={(event) => {
@@ -619,11 +873,13 @@ export default function WorkspaceClient({
                     }}
                   />
                   <button
-                    className="btn-copper self-end rounded-xl px-5 py-3 text-sm"
+                    className="btn-copper shrink-0 self-end rounded-xl px-5 py-3 text-sm"
                     onClick={() => {
                       void handleRefine();
                     }}
-                    disabled={isRefining}
+                    disabled={
+                      isRefining || (!chatInput.trim() && !attachmentFile)
+                    }
                   >
                     {isRefining ? (
                       <span className="flex items-center gap-2">

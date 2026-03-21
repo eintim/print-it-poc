@@ -33,6 +33,8 @@ export default defineSchema({
       v.literal("assistant"),
     ),
     content: v.string(),
+    attachmentStorageId: v.optional(v.id("_storage")),
+    attachmentContentType: v.optional(v.string()),
     readyToGenerate: v.optional(v.boolean()),
     canonicalPrompt: v.optional(v.string()),
     tips: v.optional(v.array(v.string())),

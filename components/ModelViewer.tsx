@@ -94,17 +94,19 @@ export default function ModelViewer({
     rimLight.position.set(0, 5, -8);
     scene.add(ambient, keyLight, fillLight, rimLight);
 
+    const floorMaterial = new THREE.MeshStandardMaterial({
+      color: "#eadbc9",
+      roughness: 0.92,
+      metalness: 0.02,
+      depthWrite: true,
+    });
+    /** Unit circle in XZ; scale after load so the disk sits just under the model footprint. */
     const floor = new THREE.Mesh(
-      new THREE.CircleGeometry(2.2, 64),
-      new THREE.MeshStandardMaterial({
-        color: "#eadbc9",
-        roughness: 0.92,
-        metalness: 0.02,
-      }),
+      new THREE.CircleGeometry(1, 64),
+      floorMaterial,
     );
     floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -1.2;
-    scene.add(floor);
+    floor.receiveShadow = true;
 
     let frameId = 0;
     let disposed = false;
@@ -142,6 +144,16 @@ export default function ModelViewer({
 
         root.position.sub(center);
         root.position.y = -size.y / 2 + 0.05;
+
+        const placedBox = new THREE.Box3().setFromObject(root);
+        const placedSize = placedBox.getSize(new THREE.Vector3());
+        const groundGap = Math.max(placedSize.y, 1) * 0.004;
+        floor.position.y = placedBox.min.y - groundGap;
+        const footprintRadius =
+          0.55 * Math.hypot(placedSize.x, placedSize.z) + groundGap;
+        floor.scale.setScalar(Math.max(1.2, footprintRadius));
+
+        scene.add(floor);
 
         const maxDim = Math.max(size.x, size.y, size.z, 1);
         camera.position.set(maxDim * 1.8, maxDim * 1.2, maxDim * 1.8);
@@ -199,6 +211,8 @@ export default function ModelViewer({
           }
         });
       }
+      floor.geometry.dispose();
+      floorMaterial.dispose();
       scene.clear();
       renderer.dispose();
       renderer.forceContextLoss();

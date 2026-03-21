@@ -1,7 +1,15 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
-import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { internal } from "./_generated/api";
+import {
+  action,
+  internalQuery,
+  mutation,
+  query,
+  type MutationCtx,
+  type QueryCtx,
+} from "./_generated/server";
 
 const sessionStatusValidator = v.union(
   v.literal("draft"),
@@ -33,6 +41,21 @@ async function requireUser(ctx: QueryCtx | MutationCtx) {
 
 function buildSessionTitle(prompt: string) {
   return prompt.trim().slice(0, 48) || "Untitled model";
+}
+
+const IMAGE_ONLY_PLACEHOLDER =
+  "(Reference sketch or image attached — use it to infer shape, silhouette, and design intent.)";
+
+/** Convex actions run in V8 without Node's `Buffer`. */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 8192;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
+  }
+  return btoa(binary);
 }
 
 export const getWorkspace = query({
@@ -71,7 +94,7 @@ export const getWorkspace = query({
       throw new Error("Session not found.");
     }
 
-    const selectedMessages =
+    const selectedMessagesRaw =
       selectedSessionId === null
         ? []
         : (
@@ -81,6 +104,16 @@ export const getWorkspace = query({
               .order("desc")
               .take(40)
           ).reverse();
+
+    const selectedMessages = await Promise.all(
+      selectedMessagesRaw.map(async (message) => ({
+        ...message,
+        attachmentUrl:
+          message.attachmentStorageId !== undefined
+            ? await ctx.storage.getUrl(message.attachmentStorageId)
+            : null,
+      })),
+    );
 
     const currentJob =
       selectedSessionId === null
@@ -236,14 +269,32 @@ export const listIdeas = query({
   },
 });
 
+export const generateRefinementAttachmentUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    await requireUser(ctx);
+    return { uploadUrl: await ctx.storage.generateUploadUrl() };
+  },
+});
+
 export const beginRefinementTurn = mutation({
   args: {
     sessionId: v.union(v.id("refinementSessions"), v.null()),
     message: v.string(),
+    attachmentStorageId: v.optional(v.id("_storage")),
+    attachmentContentType: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
     const now = Date.now();
+
+    const hasText = args.message.trim().length > 0;
+    if (!hasText && !args.attachmentStorageId) {
+      throw new Error("Add a message or attach a reference image or sketch.");
+    }
+
+    const storedContent = hasText ? args.message.trim() : IMAGE_ONLY_PLACEHOLDER;
+    const originalForSession = hasText ? args.message.trim() : "Sketch / reference image";
 
     let sessionId = args.sessionId;
     let session = sessionId ? await ctx.db.get(sessionId) : null;
@@ -254,8 +305,8 @@ export const beginRefinementTurn = mutation({
     if (!session) {
       sessionId = await ctx.db.insert("refinementSessions", {
         userId,
-        title: buildSessionTitle(args.message),
-        originalPrompt: args.message,
+        title: buildSessionTitle(originalForSession),
+        originalPrompt: originalForSession,
         latestPrompt: "",
         status: "draft",
         lastMessageAt: now,
@@ -271,7 +322,9 @@ export const beginRefinementTurn = mutation({
       sessionId: sessionId!,
       userId,
       role: "user",
-      content: args.message,
+      content: storedContent,
+      attachmentStorageId: args.attachmentStorageId,
+      attachmentContentType: args.attachmentContentType,
     });
 
     return {
@@ -510,5 +563,89 @@ export const updateSessionStatus = mutation({
       status: args.status,
       lastMessageAt: Date.now(),
     });
+  },
+});
+
+const MAX_REFINEMENT_ATTACHMENTS_FOR_MODEL = 5;
+
+export const getSessionMessagesForRefinementLoad = internalQuery({
+  args: {
+    sessionId: v.id("refinementSessions"),
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const session = await ctx.db.get(args.sessionId);
+    if (!session || session.userId !== args.userId) {
+      return null;
+    }
+
+    const messages = (
+      await ctx.db
+        .query("refinementMessages")
+        .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
+        .order("desc")
+        .take(40)
+    ).reverse();
+
+    return messages.map((message) => ({
+      _id: message._id,
+      role: message.role,
+      content: message.content,
+      attachmentStorageId: message.attachmentStorageId,
+      attachmentContentType: message.attachmentContentType,
+    }));
+  },
+});
+
+export const loadRefinementAttachmentPayloads = action({
+  args: {
+    sessionId: v.id("refinementSessions"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Authentication required.");
+    }
+
+    const rows = await ctx.runQuery(internal.app.getSessionMessagesForRefinementLoad, {
+      sessionId: args.sessionId,
+      userId,
+    });
+
+    if (!rows) {
+      throw new Error("Session not found.");
+    }
+
+    const out: Record<string, { mimeType: string; base64: string }> = {};
+    let loaded = 0;
+
+    for (
+      let i = rows.length - 1;
+      i >= 0 && loaded < MAX_REFINEMENT_ATTACHMENTS_FOR_MODEL;
+      i--
+    ) {
+      const message = rows[i];
+      if (message.role !== "user" || !message.attachmentStorageId) {
+        continue;
+      }
+
+      const blob = await ctx.storage.get(message.attachmentStorageId);
+      if (!blob) {
+        continue;
+      }
+
+      const buf = await blob.arrayBuffer();
+      const mimeType =
+        message.attachmentContentType?.trim() ||
+        (blob.type && blob.type !== "application/octet-stream" ? blob.type : "image/jpeg");
+
+      out[message._id] = {
+        mimeType,
+        base64: arrayBufferToBase64(buf),
+      };
+      loaded++;
+    }
+
+    return out;
   },
 });
