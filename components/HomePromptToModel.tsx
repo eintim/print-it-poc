@@ -29,8 +29,8 @@ function SketchToModelArrow({
   if (isH) {
     return (
       <svg
-        className={`hidden shrink-0 lg:block ${compact ? "h-[3rem] w-[4.5rem] xl:w-[5.25rem]" : "h-[4.5rem] w-[6.5rem] sm:w-[7.5rem] md:w-[8.5rem] xl:w-[9.5rem]"}`}
-        viewBox="0 0 152 72"
+        className={`hidden shrink-0 lg:block lg:self-center ${compact ? "h-14 w-21 xl:w-24" : "h-20 w-30 sm:w-36 md:w-40 xl:w-44"}`}
+        viewBox="0 0 152 80"
         fill="none"
         aria-hidden
       >
@@ -42,112 +42,115 @@ function SketchToModelArrow({
           </linearGradient>
         </defs>
 
-        {/* Drop-shadow ribbon */}
-        <path
-          d={path}
-          stroke="#2a2421"
-          strokeWidth="11"
-          strokeLinecap="round"
-          opacity="0.2"
-          transform="translate(2.5 2)"
-        />
-        {/* Animated spark trail under the ribbon */}
-        <path
-          d={path}
-          stroke="white"
-          strokeWidth="3.5"
-          strokeLinecap="round"
-          strokeOpacity="0.45"
-          strokeDasharray="8 16"
-        >
-          <animate
-            attributeName="stroke-dashoffset"
-            dur="1.6s"
-            from="0"
-            to="-96"
-            repeatCount="indefinite"
+        {/* Shift art down so the curve reads centered vs tall sketch / 3D panels */}
+        <g transform="translate(0 10)">
+          {/* Drop-shadow ribbon */}
+          <path
+            d={path}
+            stroke="#2a2421"
+            strokeWidth="11"
+            strokeLinecap="round"
+            opacity="0.2"
+            transform="translate(2.5 2)"
           />
-        </path>
-        {/* Solid gradient ribbon */}
-        <path
-          d={path}
-          stroke={`url(#${gradId})`}
-          strokeWidth="7"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        {/* Comic ink outline */}
-        <path
-          d={path}
-          stroke="#2a2421"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          fill="none"
-        />
+          {/* Animated spark trail under the ribbon */}
+          <path
+            d={path}
+            stroke="white"
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            strokeOpacity="0.45"
+            strokeDasharray="8 16"
+          >
+            <animate
+              attributeName="stroke-dashoffset"
+              dur="1.6s"
+              from="0"
+              to="-96"
+              repeatCount="indefinite"
+            />
+          </path>
+          {/* Solid gradient ribbon */}
+          <path
+            d={path}
+            stroke={`url(#${gradId})`}
+            strokeWidth="7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          {/* Comic ink outline */}
+          <path
+            d={path}
+            stroke="#2a2421"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            fill="none"
+          />
 
-        {/* Arrow head */}
-        <path
-          d="M 126 34 L 140 40 L 126 46 Z"
-          fill="#166534"
-          stroke="#2a2421"
-          strokeWidth="2"
-          strokeLinejoin="round"
-        />
-
-        {/* Pencil / sketch nib */}
-        <g transform="translate(2 30)">
-          <rect
-            x="0"
-            y="6"
-            width="20"
-            height="10"
-            rx="2"
-            fill="#fef3c7"
+          {/* Arrow head */}
+          <path
+            d="M 126 34 L 140 40 L 126 46 Z"
+            fill="#166534"
             stroke="#2a2421"
             strokeWidth="2"
+            strokeLinejoin="round"
           />
-          <path d="M 20 11 L 30 11 L 24 5 Z" fill="#2a2421" />
-          <line
-            x1="4"
-            y1="9"
-            x2="14"
-            y2="9"
-            stroke="#2a2421"
-            strokeWidth="1.2"
-            strokeLinecap="round"
-            opacity="0.35"
-          />
-        </g>
 
-        {/* Sparks riding the curve */}
-        {[
-          { fill: "#fef9c3", r: 3.2, begin: "0s" },
-          { fill: "#fdba74", r: 2.6, begin: "0.45s" },
-          { fill: "#bbf7d0", r: 2.8, begin: "0.9s" },
-        ].map((s, i) => (
-          <circle
-            key={i}
-            r={s.r}
-            fill={s.fill}
-            stroke="#2a2421"
-            strokeWidth="1.2"
-          >
-            <animateMotion
-              dur="2.6s"
-              begin={s.begin}
-              repeatCount="indefinite"
-              path={path}
-              rotate="0"
+          {/* Pencil / sketch nib */}
+          <g transform="translate(2 30)">
+            <rect
+              x="0"
+              y="6"
+              width="20"
+              height="10"
+              rx="2"
+              fill="#fef3c7"
+              stroke="#2a2421"
+              strokeWidth="2"
             />
-          </circle>
-        ))}
+            <path d="M 20 11 L 30 11 L 24 5 Z" fill="#2a2421" />
+            <line
+              x1="4"
+              y1="9"
+              x2="14"
+              y2="9"
+              stroke="#2a2421"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+              opacity="0.35"
+            />
+          </g>
+
+          {/* Sparks riding the curve */}
+          {[
+            { fill: "#fef9c3", r: 3.2, begin: "0s" },
+            { fill: "#fdba74", r: 2.6, begin: "0.45s" },
+            { fill: "#bbf7d0", r: 2.8, begin: "0.9s" },
+          ].map((s, i) => (
+            <circle
+              key={i}
+              r={s.r}
+              fill={s.fill}
+              stroke="#2a2421"
+              strokeWidth="1.2"
+            >
+              <animateMotion
+                dur="2.6s"
+                begin={s.begin}
+                repeatCount="indefinite"
+                path={path}
+                rotate="0"
+              />
+            </circle>
+          ))}
+        </g>
       </svg>
     );
   }
 
   return (
     <svg
-      className={`mx-auto lg:hidden ${compact ? "h-12 w-10" : "h-[5.5rem] w-16"}`}
+      className={`mx-auto lg:hidden ${compact ? "h-14 w-11" : "h-24 w-18"}`}
       viewBox="0 0 48 80"
       fill="none"
       aria-hidden
@@ -196,6 +199,82 @@ function SketchToModelArrow({
         strokeLinejoin="round"
       />
       <circle r="2.8" cx="24" cy="8" fill="#fef3c7" stroke="#2a2421" strokeWidth="1.2" />
+    </svg>
+  );
+}
+
+/** Napkin-style line art for the hero “sketch” panel (matches moon-jar copy). */
+function PromptSketchSvg({ compact }: { compact?: boolean }) {
+  return (
+    <svg
+      className={`w-full shrink-0 text-[#2a2421] ${compact ? "max-h-[5.5rem] sm:max-h-[6rem]" : "max-h-[9.5rem] sm:max-h-[11rem]"}`}
+      viewBox="0 0 240 200"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      {/* Margin scribbles — stars */}
+      <g
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity="0.85"
+      >
+        <path d="M 196 36 L 198 42 L 204 40 L 200 45 L 206 48 L 199 48 L 198 54 L 195 48 L 188 48 L 194 44 L 190 39 L 196 42 Z" />
+        <path d="M 214 68 L 215.5 72 L 219 71 L 216.5 75 L 220 77 L 215.5 77 L 214 81 L 212.5 77 L 208 77 L 211.5 74.5 L 209.5 71 L 213.5 72 Z" />
+        <path
+          d="M 178 58 l 3 0 M 179.5 55 l 0 6"
+          strokeWidth="2"
+          opacity="0.7"
+        />
+        <path
+          d="M 226 42 l 2.5 0 M 227.25 39.5 l 0 5"
+          strokeWidth="1.8"
+          opacity="0.55"
+        />
+      </g>
+      {/* Moon jar + lid */}
+      <g
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      >
+        {/* Lid */}
+        <ellipse cx="118" cy="58" rx="38" ry="10" fill="rgba(254,243,199,0.35)" />
+        <path d="M 80 58 Q 118 44 156 58" />
+        <line x1="82" y1="58" x2="154" y2="58" strokeWidth="2.2" opacity="0.5" />
+        {/* Knob */}
+        <ellipse cx="118" cy="48" rx="9" ry="5" fill="rgba(194,65,12,0.12)" />
+        <path d="M 109 48 Q 118 40 127 48" />
+        {/* Neck */}
+        <path d="M 88 68 Q 118 62 148 68" />
+        <path d="M 90 68 L 90 78 Q 118 84 146 78 L 146 68" />
+        {/* Body */}
+        <path
+          d="M 90 78 Q 72 118 78 158 Q 118 176 158 158 Q 164 118 146 78"
+          fill="rgba(255,253,245,0.5)"
+        />
+        <path d="M 90 78 Q 72 118 78 158 Q 118 176 158 158 Q 164 118 146 78" />
+        {/* Foot ring */}
+        <path d="M 86 154 Q 118 168 150 154" strokeWidth="2.4" opacity="0.65" />
+        {/* Shading hatch */}
+        <path
+          d="M 102 100 l 8 18 M 112 92 l 10 22 M 124 88 l 10 24 M 136 92 l 8 20"
+          strokeWidth="1.4"
+          opacity="0.22"
+        />
+      </g>
+      {/* Loose pencil underline under jar */}
+      <path
+        d="M 52 178 Q 118 188 188 172"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        opacity="0.2"
+      />
     </svg>
   );
 }
@@ -304,6 +383,11 @@ export default function HomePromptToModel({
                 >
                   napkin.png
                 </span>
+              </div>
+              <div
+                className={`relative mt-3 flex items-center justify-center rounded-md border-2 border-dashed border-[#2a2421]/20 bg-white/60 ${compact ? "py-1.5 px-2" : "py-2.5 px-3 sm:py-3 sm:px-4"}`}
+              >
+                <PromptSketchSvg compact={compact} />
               </div>
               <p
                 className={`relative font-mono leading-snug text-[#2a2421] ${
