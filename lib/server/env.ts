@@ -1,4 +1,3 @@
-const FEATHERLESS_DEFAULT_BASE_URL = "https://api.featherless.ai/v1";
 const MESHY_DEFAULT_BASE_URL = "https://api.meshy.ai";
 
 function required(name: string) {
@@ -9,16 +8,12 @@ function required(name: string) {
   return value;
 }
 
-export function getFeatherlessApiKey() {
-  return required("FEATHERLESS_API_KEY");
+export function getGeminiApiKey() {
+  return required("GEMINI_API_KEY");
 }
 
-export function getFeatherlessBaseUrl() {
-  return process.env.FEATHERLESS_BASE_URL ?? FEATHERLESS_DEFAULT_BASE_URL;
-}
-
-export function getFeatherlessModel() {
-  return process.env.FEATHERLESS_MODEL ?? "Qwen/Qwen2.5-72B-Instruct";
+export function getGeminiModel() {
+  return process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
 }
 
 export function getMeshyApiKey() {

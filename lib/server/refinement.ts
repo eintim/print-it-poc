@@ -1,12 +1,8 @@
-import OpenAI from "openai";
-import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import { GoogleGenAI, type Content } from "@google/genai";
 import { z } from "zod";
 import {
-  getAppTitle,
-  getAppUrl,
-  getFeatherlessApiKey,
-  getFeatherlessBaseUrl,
-  getFeatherlessModel,
+  getGeminiApiKey,
+  getGeminiModel,
 } from "./env";
 
 const JSON_START = "<<<REFINEMENT_JSON>>>";
@@ -79,19 +75,12 @@ export function createRefinementStreamFilter(): RefinementStreamFilter {
   };
 }
 
-export function createFeatherlessClient() {
-  return new OpenAI({
-    apiKey: getFeatherlessApiKey(),
-    baseURL: getFeatherlessBaseUrl(),
-    defaultHeaders: {
-      "HTTP-Referer": getAppUrl(),
-      "X-Title": getAppTitle(),
-    },
-  });
+export function createGeminiClient() {
+  return new GoogleGenAI({ apiKey: getGeminiApiKey() });
 }
 
-export function getFeatherlessRefinementModel() {
-  return getFeatherlessModel();
+export function getGeminiRefinementModel() {
+  return getGeminiModel();
 }
 
 export function getRefinementSystemPrompt() {
@@ -112,28 +101,21 @@ export function getRefinementSystemPrompt() {
   ].join(" ");
 }
 
-export function toChatMessages(
-  currentIdea: string,
+export function buildSystemInstruction(currentIdea: string): string {
+  const base = getRefinementSystemPrompt();
+  if (currentIdea.trim()) {
+    return `${base}\n\nCurrent refined prompt draft:\n${currentIdea.trim()}`;
+  }
+  return base;
+}
+
+export function toGeminiContents(
   history: Array<{ role: "user" | "assistant"; content: string }>,
-): ChatCompletionMessageParam[] {
-  return [
-    {
-      role: "system",
-      content: getRefinementSystemPrompt(),
-    },
-    ...(currentIdea.trim()
-      ? [
-          {
-            role: "system" as const,
-            content: `Current refined prompt draft:\n${currentIdea.trim()}`,
-          },
-        ]
-      : []),
-    ...history.map((message) => ({
-      role: message.role,
-      content: message.content,
-    })),
-  ];
+): Content[] {
+  return history.map((message) => ({
+    role: message.role === "assistant" ? ("model" as const) : ("user" as const),
+    parts: [{ text: message.content }],
+  }));
 }
 
 export function parseRefinementTranscript(transcript: string, fallbackPrompt: string) {

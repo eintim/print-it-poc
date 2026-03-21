@@ -3,11 +3,12 @@ import { z } from "zod";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
-  createFeatherlessClient,
+  buildSystemInstruction,
+  createGeminiClient,
   createRefinementStreamFilter,
-  getFeatherlessRefinementModel,
+  getGeminiRefinementModel,
   parseRefinementTranscript,
-  toChatMessages,
+  toGeminiContents,
 } from "@/lib/server/refinement";
 import { requireRouteToken, routeErrorResponse } from "@/lib/server/route-utils";
 
@@ -40,26 +41,30 @@ export async function POST(request: Request) {
       { token },
     );
 
-    const client = createFeatherlessClient();
+    const client = createGeminiClient();
     const encoder = new TextEncoder();
 
-    const stream = await client.chat.completions.create(
-      {
-        model: getFeatherlessRefinementModel(),
-        temperature: 0.4,
-        stream: true,
-        messages: toChatMessages(
-          conversation.session.latestPrompt,
-          conversation.messages
-            .filter((message) => message.role === "user" || message.role === "assistant")
-            .map((message) => ({
-              role: message.role as "user" | "assistant",
-              content: message.content,
-            })),
-        ),
-      },
-      { signal: request.signal },
+    const systemInstruction = buildSystemInstruction(
+      conversation.session.latestPrompt,
     );
+
+    const contents = toGeminiContents(
+      conversation.messages
+        .filter((message) => message.role === "user" || message.role === "assistant")
+        .map((message) => ({
+          role: message.role as "user" | "assistant",
+          content: message.content,
+        })),
+    );
+
+    const response = await client.models.generateContentStream({
+      model: getGeminiRefinementModel(),
+      contents,
+      config: {
+        systemInstruction,
+        temperature: 0.4,
+      },
+    });
 
     let transcript = "";
     const visibleTextFilter = createRefinementStreamFilter();
@@ -76,9 +81,9 @@ export async function POST(request: Request) {
             ),
           );
 
-          for await (const chunk of stream) {
-            const delta = chunk.choices[0]?.delta?.content;
-            if (typeof delta !== "string" || delta.length === 0) {
+          for await (const chunk of response) {
+            const delta = chunk.text;
+            if (!delta) {
               continue;
             }
 
