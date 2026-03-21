@@ -64,20 +64,20 @@ export default function PrintOrderForm({
       }}
     >
       <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">
+        <p className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-[var(--accent)]">
           Final order
         </p>
         <h3
-          className="text-3xl font-semibold text-[var(--foreground)]"
+          className="text-4xl font-semibold text-[var(--foreground)]"
           style={{ fontFamily: "var(--font-newsreader), serif" }}
         >
           Share your delivery details
         </h3>
       </div>
 
-      <div className="grid gap-4 rounded-[1.5rem] bg-[var(--panel)] p-4 md:grid-cols-2">
+      <div className="grid gap-4 rounded-[1.75rem] bg-[var(--panel)] p-5 md:grid-cols-2">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
+          <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[var(--muted)]">
             Selected size
           </p>
           <p className="mt-2 text-lg font-semibold text-[var(--foreground)]">
@@ -85,7 +85,7 @@ export default function PrintOrderForm({
           </p>
         </div>
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
+          <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[var(--muted)]">
             Estimated price
           </p>
           <p className="mt-2 text-lg font-semibold text-[var(--accent)]">
@@ -95,7 +95,7 @@ export default function PrintOrderForm({
       </div>
 
       <input
-        className="w-full rounded-[1.25rem] bg-[var(--panel)] px-4 py-3 text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)]/70"
+        className="w-full rounded-[1.5rem] border border-[rgba(186,176,164,0.32)] bg-[var(--cream)] px-4 py-3 text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)]/70 focus:border-[rgba(165,60,44,0.35)]"
         placeholder="Contact name"
         value={contactName}
         onChange={(event) => setContactName(event.target.value)}
@@ -103,7 +103,7 @@ export default function PrintOrderForm({
         disabled={disabled || submitting}
       />
       <input
-        className="w-full rounded-[1.25rem] bg-[var(--panel)] px-4 py-3 text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)]/70"
+        className="w-full rounded-[1.5rem] border border-[rgba(186,176,164,0.32)] bg-[var(--cream)] px-4 py-3 text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)]/70 focus:border-[rgba(165,60,44,0.35)]"
         placeholder="Email"
         type="email"
         value={email || defaultEmail}
@@ -112,7 +112,7 @@ export default function PrintOrderForm({
         disabled={disabled || submitting}
       />
       <textarea
-        className="min-h-28 w-full rounded-[1.25rem] bg-[var(--panel)] px-4 py-3 text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)]/70"
+        className="min-h-28 w-full rounded-[1.5rem] border border-[rgba(186,176,164,0.32)] bg-[var(--cream)] px-4 py-3 text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)]/70 focus:border-[rgba(165,60,44,0.35)]"
         placeholder="Shipping address"
         value={shippingAddress}
         onChange={(event) => setShippingAddress(event.target.value)}
@@ -120,7 +120,7 @@ export default function PrintOrderForm({
         disabled={disabled || submitting}
       />
       <textarea
-        className="min-h-24 w-full rounded-[1.25rem] bg-[var(--panel)] px-4 py-3 text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)]/70"
+        className="min-h-24 w-full rounded-[1.5rem] border border-[rgba(186,176,164,0.32)] bg-[var(--cream)] px-4 py-3 text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)]/70 focus:border-[rgba(165,60,44,0.35)]"
         placeholder="Optional notes"
         value={notes}
         onChange={(event) => setNotes(event.target.value)}
@@ -129,7 +129,8 @@ export default function PrintOrderForm({
       <button
         type="submit"
         disabled={disabled || submitting}
-        className="w-full rounded-full bg-[linear-gradient(135deg,var(--accent),var(--accent-soft))] px-4 py-3 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+        className="w-full rounded-[1.75rem] px-4 py-4 text-sm font-extrabold uppercase tracking-[0.14em] text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+        style={{ background: "linear-gradient(135deg, var(--accent-soft), var(--accent))" }}
       >
         {submitting ? "Submitting..." : "Request print quote"}
       </button>

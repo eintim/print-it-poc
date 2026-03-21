@@ -41,10 +41,10 @@ type ViewerBounds = {
 type WorkspaceScreen = "chat" | "model" | "order";
 
 const DEFAULT_PROMPT_SUGGESTIONS = [
-  "Make the silhouette cleaner and easier to print.",
-  "Add a friendly expression and rounded details.",
-  "Specify the pose, material feel, and finishing style.",
-  "Keep overhangs gentle so the model prints reliably.",
+  "Cleaner silhouette for printing",
+  "Add friendly expression & rounded details",
+  "Specify pose, material & finish",
+  "Keep overhangs gentle for reliability",
 ];
 
 function jobLabel(status: string) {
@@ -96,6 +96,12 @@ async function readNdjsonStream(
     }
   }
 }
+
+const STEP_TABS: { id: WorkspaceScreen; label: string; num: string }[] = [
+  { id: "chat", label: "Create", num: "1" },
+  { id: "model", label: "Customize", num: "2" },
+  { id: "order", label: "Order", num: "3" },
+];
 
 export default function WorkspaceClient({
   initialSessionId = null,
@@ -286,6 +292,7 @@ export default function WorkspaceClient({
     return assistantMessages?.tips ?? [];
   }, [workspace?.selectedMessages]);
   const promptSuggestions = tips.length > 0 ? tips : DEFAULT_PROMPT_SUGGESTIONS;
+  const isWorkspaceLoading = isLoading || !workspace;
 
   useEffect(() => {
     const chatContainer = chatScrollRef.current;
@@ -443,153 +450,97 @@ export default function WorkspaceClient({
     );
   }, []);
 
-  if (isLoading || !workspace) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[var(--background)] text-[var(--foreground)]">
-        Loading workspace...
-      </main>
-    );
-  }
-
-  const StepButton = ({
-    id,
-    label,
-    icon,
-    disabled = false,
-  }: {
-    id: WorkspaceScreen;
-    label: string;
-    icon: string;
-    disabled?: boolean;
-  }) => {
-    const isActive = activeScreen === id;
-    return (
-      <div className="relative flex flex-1 items-center justify-center">
-        {id !== "order" ? (
-          <div className="absolute left-[calc(50%+28px)] right-0 top-5 hidden h-px bg-[var(--line)] md:block" />
-        ) : null}
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => setActiveScreen(id)}
-          className={`relative z-10 flex flex-col items-center gap-2 text-center transition ${
-            disabled ? "cursor-not-allowed opacity-45" : ""
-          }`}
-        >
-          <div
-            className={`flex h-11 w-11 items-center justify-center rounded-full border text-sm font-semibold transition ${
-              isActive
-                ? "border-[var(--accent)] bg-[linear-gradient(135deg,var(--accent),var(--accent-soft))] text-white shadow-[0_10px_30px_rgba(165,60,44,0.18)]"
-                : "border-[var(--line)] bg-white text-[var(--muted)]"
-            }`}
-          >
-            {icon}
-          </div>
-          <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">
-            {label}
-          </span>
-        </button>
-      </div>
-    );
-  };
+  const hasMessages = chatMessages.length > 0 || !!streamingResponse || !!pendingUserMessage;
 
   return (
     <main className="min-h-screen bg-transparent text-[var(--foreground)]">
       <SiteHeader />
 
-      <div className="mx-auto flex max-w-[1280px] flex-col gap-5 px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
-        <section className="flex flex-col gap-4 rounded-[1.75rem] bg-[var(--panel)] p-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">
-              Create
-            </p>
-            <h1
-              className="mt-2 text-4xl font-semibold text-[var(--foreground)] sm:text-5xl"
-              style={{ fontFamily: "var(--font-newsreader), serif" }}
-            >
-              Build your next printable idea
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--muted)]">
-              Refine the prompt, generate the model, and prepare the final print
-              request from one workspace.
-            </p>
+      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
+        {/* Compact workspace bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-1 rounded-full bg-[var(--panel)] p-1">
+            {STEP_TABS.map((tab) => {
+              const isActive = activeScreen === tab.id;
+              const isDisabled =
+                (tab.id === "model" && !activeSession) ||
+                (tab.id === "order" && !activeModel);
+
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  disabled={isDisabled}
+                  onClick={() => setActiveScreen(tab.id)}
+                  className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition ${
+                    isActive
+                      ? "bg-white text-[var(--foreground)] shadow-[0_2px_8px_rgba(93,64,43,0.1)]"
+                      : isDisabled
+                        ? "cursor-not-allowed text-[var(--muted)] opacity-40"
+                        : "text-[var(--muted)] hover:text-[var(--foreground)]"
+                  }`}
+                >
+                  <span
+                    className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-extrabold ${
+                      isActive
+                        ? "bg-[var(--accent)] text-white"
+                        : "bg-[var(--line)] text-white"
+                    }`}
+                  >
+                    {tab.num}
+                  </span>
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onStartOver}
-              className="rounded-full border border-[var(--line)] bg-white px-4 py-2 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--paper)]"
+              className="rounded-full border border-[var(--line)] px-4 py-2 text-sm font-semibold text-[var(--muted)] transition hover:border-[var(--foreground)] hover:text-[var(--foreground)]"
             >
               Start over
             </button>
-            <div className="rounded-full bg-white px-4 py-2 text-sm text-[var(--muted)]">
-              {workspace.viewer ?? "Signed in"}
+            <div className="rounded-full bg-[var(--panel)] px-4 py-2 text-sm text-[var(--muted)]">
+              {isWorkspaceLoading ? "Loading..." : (workspace.viewer ?? "Signed in")}
             </div>
           </div>
-        </section>
+        </div>
 
-        <section className="mx-auto flex max-w-3xl items-start justify-between gap-4">
-          <StepButton id="chat" icon="01" label="Create" />
-          <StepButton id="model" icon="02" label="Customize" disabled={!activeSession} />
-          <StepButton id="order" icon="03" label="Order" disabled={!activeModel} />
-        </section>
+        {/* Loading state */}
+        {isWorkspaceLoading ? (
+          <div className="flex min-h-[60vh] items-center justify-center">
+            <div className="flex flex-col items-center gap-4">
+              <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-[var(--line)] border-t-[var(--accent)]" />
+              <p className="text-sm text-[var(--muted)]">Preparing workspace...</p>
+            </div>
+          </div>
+        ) : null}
 
-        {activeScreen === "chat" ? (
-          <section className="grid gap-5 xl:grid-cols-[220px_minmax(0,1fr)_300px]">
-            <aside className="space-y-3 rounded-[1.75rem] bg-[var(--panel)] p-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">
-                  Prompt suggestions
-                </p>
-                <h2
-                  className="mt-2 text-2xl font-semibold text-[var(--foreground)]"
-                  style={{ fontFamily: "var(--font-newsreader), serif" }}
-                >
-                  Refine
-                </h2>
-              </div>
-              <div className="space-y-3">
-                {promptSuggestions.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    type="button"
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    className="w-full rounded-[1.25rem] bg-white px-4 py-3 text-left text-sm leading-6 text-[var(--foreground)] transition hover:bg-[var(--paper)]"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
-            </aside>
-
-            <section className="flex min-h-[720px] flex-col rounded-[2rem] bg-white">
-              <div className="border-b border-[var(--line)] px-6 py-5">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">
-                    Chat screen
-                  </p>
-                  <h2
-                    className="mt-2 text-4xl font-semibold text-[var(--foreground)]"
-                    style={{ fontFamily: "var(--font-newsreader), serif" }}
-                  >
-                    Prompt refinement chat
-                  </h2>
-                  <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-                    Describe your idea and refine it until it is ready.
-                  </p>
-                </div>
-              </div>
-
+        {/* ── Chat screen ── */}
+        {!isWorkspaceLoading && activeScreen === "chat" ? (
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
+            {/* Main chat panel */}
+            <section className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-[var(--shadow)]">
+              {/* Messages */}
               <div
                 ref={chatScrollRef}
-                className="flex-1 space-y-4 overflow-y-auto px-6 py-6"
+                className="custom-scrollbar flex min-h-[420px] flex-1 flex-col gap-3 overflow-y-auto px-5 py-5"
               >
-                {chatMessages.length === 0 && !streamingResponse ? (
-                  <div className="flex h-full min-h-64 items-center justify-center">
-                    <p className="max-w-md text-center text-sm leading-7 text-[var(--muted)]">
-                      Start with a rough idea. The assistant will shape it into a
-                      printable prompt.
+                {!hasMessages ? (
+                  <div className="flex flex-1 flex-col items-center justify-center px-4 py-8 text-center">
+                    <div className="mb-5 h-12 w-12 rounded-full bg-[rgba(253,125,104,0.12)]" />
+                    <h3
+                      className="text-3xl font-medium text-[var(--foreground)] sm:text-4xl"
+                      style={{ fontFamily: "var(--font-newsreader), serif" }}
+                    >
+                      What shall we craft?
+                    </h3>
+                    <p className="mt-2 max-w-md text-sm leading-relaxed text-[var(--muted)]">
+                      Describe an object, mood, or scene. The assistant will refine it into
+                      a printable 3D prompt.
                     </p>
                   </div>
                 ) : null}
@@ -602,16 +553,16 @@ export default function WorkspaceClient({
                     }`}
                   >
                     <div
-                      className={`max-w-[80%] rounded-[1.5rem] px-4 py-4 ${
+                      className={`max-w-[80%] rounded-2xl px-4 py-3 ${
                         message.role === "user"
-                          ? "bg-[rgba(253,125,104,0.14)] text-[var(--foreground)]"
+                          ? "bg-[rgba(253,125,104,0.12)] text-[var(--foreground)]"
                           : "bg-[var(--panel)] text-[var(--foreground)]"
                       }`}
                     >
-                      <p className="mb-2 text-[10px] uppercase tracking-[0.24em] text-[var(--muted)]">
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
                         {message.role === "user" ? "You" : "Assistant"}
                       </p>
-                      <p className="whitespace-pre-wrap text-sm leading-6">
+                      <p className="whitespace-pre-wrap text-sm leading-relaxed">
                         {message.content}
                       </p>
                     </div>
@@ -620,11 +571,11 @@ export default function WorkspaceClient({
 
                 {pendingUserMessage ? (
                   <div className="flex justify-end">
-                    <div className="max-w-[80%] rounded-[1.5rem] bg-[rgba(253,125,104,0.14)] px-4 py-4 text-[var(--foreground)]">
-                      <p className="mb-2 text-[10px] uppercase tracking-[0.24em] text-[var(--muted)]">
+                    <div className="max-w-[80%] rounded-2xl bg-[rgba(253,125,104,0.12)] px-4 py-3 text-[var(--foreground)]">
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
                         You
                       </p>
-                      <p className="whitespace-pre-wrap text-sm leading-6">
+                      <p className="whitespace-pre-wrap text-sm leading-relaxed">
                         {pendingUserMessage}
                       </p>
                     </div>
@@ -633,11 +584,11 @@ export default function WorkspaceClient({
 
                 {streamingResponse ? (
                   <div className="flex justify-start">
-                    <div className="max-w-[80%] rounded-[1.5rem] bg-[var(--panel)] px-4 py-4 text-[var(--foreground)]">
-                      <p className="mb-2 text-[10px] uppercase tracking-[0.24em] text-[var(--muted)]">
+                    <div className="max-w-[80%] rounded-2xl bg-[var(--panel)] px-4 py-3 text-[var(--foreground)]">
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
                         Assistant
                       </p>
-                      <p className="whitespace-pre-wrap text-sm leading-6">
+                      <p className="whitespace-pre-wrap text-sm leading-relaxed">
                         {streamingResponse}
                       </p>
                     </div>
@@ -645,104 +596,123 @@ export default function WorkspaceClient({
                 ) : null}
               </div>
 
-              <div className="border-t border-[var(--line)] px-6 py-5">
-                <textarea
-                  className="min-h-28 w-full rounded-[1.5rem] bg-[var(--panel)] px-4 py-4 text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)]/70"
-                  placeholder="Tell the assistant more about what you want to print..."
-                  value={chatInput}
-                  onChange={(event) => setChatInput(event.target.value)}
-                />
-                <div className="mt-4 flex items-center justify-end">
+              {/* Suggestion chips */}
+              <div className="flex flex-wrap gap-2 border-t border-[rgba(186,176,164,0.18)] px-5 pt-4 pb-2">
+                {promptSuggestions.map((suggestion) => (
                   <button
-                    className="rounded-full bg-[linear-gradient(135deg,var(--accent),var(--accent-soft))] px-6 py-3 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+                    key={suggestion}
+                    type="button"
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="rounded-full border border-[var(--line)] px-3 py-1.5 text-xs text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+
+              {/* Input area */}
+              <div className="px-5 pt-2 pb-5">
+                <div className="flex gap-3">
+                  <textarea
+                    className="min-h-[72px] flex-1 rounded-xl border border-[rgba(186,176,164,0.3)] bg-[var(--cream)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)]/60 focus:border-[rgba(165,60,44,0.3)]"
+                    placeholder="Describe your idea..."
+                    value={chatInput}
+                    onChange={(event) => setChatInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        void handleRefine();
+                      }
+                    }}
+                  />
+                  <button
+                    className="self-end rounded-xl px-5 py-3 text-sm font-bold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+                    style={{ background: "linear-gradient(135deg, var(--accent), var(--accent-soft))" }}
                     onClick={() => {
                       void handleRefine();
                     }}
                     disabled={isRefining}
                   >
-                    {isRefining ? "Refining..." : "Send message"}
+                    {isRefining ? (
+                      <span className="flex items-center gap-2">
+                        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                        Refining
+                      </span>
+                    ) : (
+                      "Refine"
+                    )}
                   </button>
                 </div>
-                {requestError ? (
-                  <p className="mt-4 rounded-[1.25rem] border border-[#e2b0a8] bg-[#fff2ef] px-4 py-3 text-sm text-[#b54b4b]">
-                    {requestError}
-                  </p>
-                ) : null}
-                {pollError ? (
-                  <p className="mt-4 rounded-[1.25rem] border border-[#e2b0a8] bg-[#fff2ef] px-4 py-3 text-sm text-[#b54b4b]">
-                    {pollError}
-                  </p>
+                {(requestError ?? pollError) ? (
+                  <p className="mt-2 text-xs text-[#b54b4b]">{requestError ?? pollError}</p>
                 ) : null}
               </div>
             </section>
 
-            <aside className="space-y-4 rounded-[1.75rem] bg-[var(--panel)] p-5">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">
-                    Final prompt
+            {/* Right sidebar: prompt + generate */}
+            <aside className="flex flex-col gap-3">
+              <div className="rounded-2xl bg-white p-4 shadow-[0_8px_24px_rgba(93,64,43,0.06)]">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
+                    Prompt
                   </p>
-                  <h2
-                    className="mt-2 text-2xl font-semibold text-[var(--foreground)]"
-                    style={{ fontFamily: "var(--font-newsreader), serif" }}
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                      canGenerate
+                        ? "bg-[var(--sage-soft)] text-[var(--sage)]"
+                        : "bg-[var(--panel)] text-[var(--muted)]"
+                    }`}
                   >
-                    Ready to generate
-                  </h2>
+                    {canGenerate ? "ready" : "draft"}
+                  </span>
                 </div>
-                <span className="rounded-full bg-white px-3 py-1 text-xs uppercase tracking-wide text-[var(--accent)]">
-                  {canGenerate ? "ready" : "draft"}
-                </span>
-              </div>
-              <div className="rounded-[1.5rem] bg-white p-4">
-                <p className="whitespace-pre-wrap text-sm leading-6 text-[var(--foreground)]">
-                  {currentPrompt || "The assistant's latest refined idea will appear here."}
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-[var(--foreground)]">
+                  {currentPrompt || "Your refined prompt will appear here as you chat."}
                 </p>
               </div>
+
               <button
-                className="w-full rounded-full bg-[linear-gradient(135deg,var(--accent),var(--accent-soft))] px-4 py-3 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-xl px-5 py-4 text-sm font-bold text-white shadow-[0_12px_28px_rgba(165,60,44,0.18)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg, var(--accent-soft), var(--accent))" }}
                 onClick={() => {
                   void handleGenerate();
                 }}
                 disabled={!canGenerate || isRefining}
               >
-                Generate model
+                Generate 3D model
               </button>
             </aside>
-          </section>
+          </div>
         ) : null}
 
-        {activeScreen === "model" ? (
-          <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-            <div className="space-y-5 rounded-[2rem] bg-white p-5">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">
-                    Model screen
-                  </p>
+        {/* ── Model / Customize screen ── */}
+        {!isWorkspaceLoading && activeScreen === "model" ? (
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+            <div className="overflow-hidden rounded-2xl bg-white shadow-[var(--shadow)]">
+              <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                <div className="flex items-center gap-3">
                   <h2
-                    className="mt-2 text-4xl font-semibold text-[var(--foreground)]"
+                    className="text-xl font-semibold text-[var(--foreground)]"
                     style={{ fontFamily: "var(--font-newsreader), serif" }}
                   >
-                    Preview your model
+                    3D Preview
                   </h2>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 text-sm">
                   {jobProgress ? (
-                    <span className="rounded-full bg-[var(--panel)] px-3 py-1 text-[var(--accent)]">
+                    <span className="rounded-full bg-[var(--panel)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
                       {jobLabel(jobProgress.status)} · {jobProgress.progress}%
                     </span>
                   ) : null}
-                  {previewDownloadUrl ? (
-                    <a
-                      href={previewDownloadUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded-full bg-[var(--panel)] px-3 py-1 text-[var(--foreground)] underline underline-offset-4"
-                    >
-                      Download STL
-                    </a>
-                  ) : null}
                 </div>
+                {previewDownloadUrl ? (
+                  <a
+                    href={previewDownloadUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-full border border-[var(--line)] px-3 py-1 text-xs font-semibold text-[var(--foreground)] transition hover:bg-[var(--cream)]"
+                  >
+                    Download STL
+                  </a>
+                ) : null}
               </div>
 
               <ModelViewer
@@ -754,140 +724,146 @@ export default function WorkspaceClient({
               />
             </div>
 
-            <aside className="space-y-4 rounded-[1.75rem] bg-[var(--panel)] p-5">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">
-                  Customization
+            <aside className="flex flex-col gap-3">
+              {/* Size selector */}
+              <div className="rounded-2xl bg-white p-4 shadow-[0_8px_24px_rgba(93,64,43,0.06)]">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
+                  Print size
                 </p>
-                <h3
-                  className="mt-2 text-2xl font-semibold text-[var(--foreground)]"
-                  style={{ fontFamily: "var(--font-newsreader), serif" }}
-                >
-                  Size and price
-                </h3>
-              </div>
-
-              <div className="grid gap-3">
-                {MODEL_SIZE_OPTIONS.map((option) => {
-                  const optionDimensions = getScaledModelDimensions(
-                    viewerBounds,
-                    option.targetHeightMm,
-                  );
-                  const optionPrice = estimatePrintPriceUsd(option.id, viewerBounds);
-                  return (
-                    <label
-                      key={option.id}
-                      className={`cursor-pointer rounded-[1.25rem] p-4 transition ${
-                        selectedSize === option.id
-                          ? "bg-white ring-1 ring-[var(--accent)]"
-                          : "bg-white/80"
-                      }`}
-                    >
-                      <input
-                        className="sr-only"
-                        type="radio"
-                        name="size"
-                        checked={selectedSize === option.id}
-                        onChange={() => setSelectedSize(option.id)}
-                      />
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-semibold text-[var(--foreground)]">
-                            {option.label}
-                          </p>
-                          <p className="mt-1 text-sm text-[var(--muted)]">
-                            {option.description}
+                <div className="mt-3 grid gap-2">
+                  {MODEL_SIZE_OPTIONS.map((option) => {
+                    const optionDimensions = getScaledModelDimensions(
+                      viewerBounds,
+                      option.targetHeightMm,
+                    );
+                    const optionPrice = estimatePrintPriceUsd(option.id, viewerBounds);
+                    return (
+                      <label
+                        key={option.id}
+                        className={`cursor-pointer rounded-xl border p-3 transition ${
+                          selectedSize === option.id
+                            ? "border-[var(--accent)]/30 bg-[rgba(253,125,104,0.06)]"
+                            : "border-[var(--line)]/40 hover:border-[var(--line)]"
+                        }`}
+                      >
+                        <input
+                          className="sr-only"
+                          type="radio"
+                          name="size"
+                          checked={selectedSize === option.id}
+                          onChange={() => setSelectedSize(option.id)}
+                        />
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-bold text-[var(--foreground)]">{option.label}</p>
+                            <p className="text-[11px] text-[var(--muted)]">
+                              {optionDimensions
+                                ? `${optionDimensions.widthMm}×${optionDimensions.heightMm}×${optionDimensions.depthMm} mm`
+                                : `${option.targetHeightMm} mm tall`}
+                            </p>
+                          </div>
+                          <p className="text-sm font-bold text-[var(--accent)]">
+                            {formatUsd(optionPrice)}
                           </p>
                         </div>
-                        <p className="text-sm font-semibold text-[var(--accent)]">
-                          {formatUsd(optionPrice)}
-                        </p>
-                      </div>
-                      <p className="mt-3 text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
-                        {optionDimensions
-                          ? `${optionDimensions.widthMm} x ${optionDimensions.heightMm} x ${optionDimensions.depthMm} mm`
-                          : `${option.targetHeightMm} mm target height`}
-                      </p>
-                    </label>
-                  );
-                })}
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
 
-              <div className="rounded-[1.5rem] bg-white p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
-                  Price
+              {/* Estimated total */}
+              <div className="rounded-2xl bg-white p-4 shadow-[0_8px_24px_rgba(93,64,43,0.06)]">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
+                  Estimated total
                 </p>
-                <p className="mt-2 text-4xl font-semibold text-[var(--accent)]">
+                <p
+                  className="mt-1 text-3xl font-semibold text-[var(--accent)]"
+                  style={{ fontFamily: "var(--font-newsreader), serif" }}
+                >
                   {formatUsd(estimatedPriceUsd)}
                 </p>
-                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-                  {scaledDimensions
-                    ? `Approx. ${scaledDimensions.widthMm} x ${scaledDimensions.heightMm} x ${scaledDimensions.depthMm} mm once printed.`
-                    : "Sizing and price will refine once the model preview finishes loading."}
-                </p>
+                {scaledDimensions ? (
+                  <p className="mt-2 text-xs text-[var(--muted)]">
+                    {scaledDimensions.widthMm} × {scaledDimensions.heightMm} × {scaledDimensions.depthMm} mm
+                  </p>
+                ) : null}
               </div>
 
-              <div className="flex flex-wrap gap-3">
+              {/* Actions */}
+              <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => setActiveScreen("chat")}
-                  className="rounded-full bg-white px-4 py-3 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--paper)]"
+                  className="rounded-xl border border-[var(--line)] px-4 py-3 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--cream)]"
                 >
-                  Back to chat
+                  Back
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveScreen("order")}
                   disabled={!activeModel}
-                  className="flex-1 rounded-full bg-[linear-gradient(135deg,var(--accent),var(--accent-soft))] px-4 py-3 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex-1 rounded-xl px-4 py-3 text-sm font-bold text-white shadow-[0_12px_28px_rgba(165,60,44,0.18)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg, var(--accent-soft), var(--accent))" }}
                 >
-                  Continue
+                  Continue to order
                 </button>
               </div>
             </aside>
-          </section>
+          </div>
         ) : null}
 
-        {activeScreen === "order" ? (
-          <section className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
-            <aside className="space-y-4 rounded-[1.75rem] bg-[var(--panel)] p-5">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">
-                  Final order screen
-                </p>
-                <h2
-                  className="mt-2 text-2xl font-semibold text-[var(--foreground)]"
-                  style={{ fontFamily: "var(--font-newsreader), serif" }}
-                >
-                  Final review
-                </h2>
-              </div>
+        {/* ── Order screen ── */}
+        {!isWorkspaceLoading && activeScreen === "order" ? (
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
+            <div>
+              {activeModel ? (
+                <PrintOrderForm
+                  disabled={false}
+                  defaultEmail={workspace?.viewer ?? ""}
+                  size={selectedSize}
+                  estimatedPriceUsd={estimatedPriceUsd}
+                  onSubmit={handleOrderSubmit}
+                />
+              ) : (
+                <div className="rounded-2xl border border-[var(--line)]/30 bg-white p-6 text-sm text-[var(--muted)] shadow-[var(--shadow)]">
+                  Generate a model first, then come back here to submit the final order details.
+                </div>
+              )}
+            </div>
 
-              <div className="rounded-[1.5rem] bg-white p-4">
-                <p className="text-sm font-semibold text-[var(--foreground)]">
+            <aside className="flex flex-col gap-3">
+              <div className="rounded-2xl bg-white p-4 shadow-[0_8px_24px_rgba(93,64,43,0.06)]">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
+                  Order summary
+                </p>
+                <p className="mt-2 text-sm font-bold text-[var(--foreground)]">
                   {selectedSizeOption.label} · {selectedSizeOption.targetHeightMm} mm
                 </p>
-                <p className="mt-2 text-3xl font-semibold text-[var(--accent)]">
+                <p
+                  className="mt-1 text-2xl font-semibold text-[var(--accent)]"
+                  style={{ fontFamily: "var(--font-newsreader), serif" }}
+                >
                   {formatUsd(estimatedPriceUsd)}
                 </p>
-                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-                  {scaledDimensions
-                    ? `Estimated footprint: ${scaledDimensions.widthMm} x ${scaledDimensions.heightMm} x ${scaledDimensions.depthMm} mm.`
-                    : "The viewer will provide exact scale once the model finishes loading."}
-                </p>
+                {scaledDimensions ? (
+                  <p className="mt-2 text-xs text-[var(--muted)]">
+                    {scaledDimensions.widthMm} × {scaledDimensions.heightMm} × {scaledDimensions.depthMm} mm
+                  </p>
+                ) : null}
               </div>
 
-              <div className="rounded-[1.5rem] bg-white p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
-                  Final prompt
+              <div className="rounded-2xl bg-white p-4 shadow-[0_8px_24px_rgba(93,64,43,0.06)]">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
+                  Prompt
                 </p>
-                <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--foreground)]">
-                  {currentPrompt || "No prompt available yet."}
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-[var(--foreground)]">
+                  {currentPrompt || "No prompt yet."}
                 </p>
               </div>
 
               {orderMessage ? (
-                <div className="rounded-[1.5rem] border border-[#b5d5b7] bg-[#edf8ef] px-4 py-3 text-sm text-[#2f6c39]">
+                <div className="rounded-xl border border-[#b5d5b7] bg-[#edf8ef] px-4 py-3 text-sm text-[#2f6c39]">
                   {orderMessage}
                 </div>
               ) : null}
@@ -895,29 +871,12 @@ export default function WorkspaceClient({
               <button
                 type="button"
                 onClick={() => setActiveScreen("model")}
-                className="rounded-full bg-white px-4 py-3 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--paper)]"
+                className="rounded-xl border border-[var(--line)] px-4 py-3 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--cream)]"
               >
-                Back to model screen
+                Back to customize
               </button>
             </aside>
-
-            <div>
-              {activeModel ? (
-                <PrintOrderForm
-                  disabled={false}
-                  defaultEmail={workspace.viewer ?? ""}
-                  size={selectedSize}
-                  estimatedPriceUsd={estimatedPriceUsd}
-                  onSubmit={handleOrderSubmit}
-                />
-              ) : (
-                <div className="rounded-[2rem] border border-[var(--line)] bg-[rgba(255,253,249,0.88)] p-8 text-sm leading-6 text-[var(--muted)] shadow-[0_24px_70px_rgba(93,64,43,0.08)]">
-                  Generate a model first, then come back here to submit the final
-                  order details.
-                </div>
-              )}
-            </div>
-          </section>
+          </div>
         ) : null}
       </div>
     </main>
