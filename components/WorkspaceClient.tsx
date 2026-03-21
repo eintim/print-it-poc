@@ -11,6 +11,7 @@ import {
   formatUsd,
   getModelSizeOption,
   getScaledModelDimensions,
+  type ModelPrintMetrics,
   type ModelSizeId,
 } from "@/lib/app-config";
 import { useConvexAuth, useQuery } from "convex/react";
@@ -31,12 +32,6 @@ type StreamEvent =
       title: string;
     }
   | { type: "error"; error: string };
-
-type ViewerBounds = {
-  width: number;
-  height: number;
-  depth: number;
-} | null;
 
 type WorkspaceScreen = "chat" | "model" | "order";
 
@@ -130,7 +125,8 @@ export default function WorkspaceClient({
     status: string;
     progress: number;
   } | null>(null);
-  const [viewerBounds, setViewerBounds] = useState<ViewerBounds>(null);
+  const [viewerPrintMetrics, setViewerPrintMetrics] =
+    useState<ModelPrintMetrics>(null);
   const [orderMessage, setOrderMessage] = useState<string | null>(null);
 
   const resetTransientState = useCallback(() => {
@@ -141,7 +137,7 @@ export default function WorkspaceClient({
     setPollJobId(null);
     setPollError(null);
     setJobProgress(null);
-    setViewerBounds(null);
+    setViewerPrintMetrics(null);
     setOrderMessage(null);
   }, []);
 
@@ -277,12 +273,16 @@ export default function WorkspaceClient({
     [selectedSize],
   );
   const scaledDimensions = useMemo(
-    () => getScaledModelDimensions(viewerBounds, selectedSizeOption.targetHeightMm),
-    [selectedSizeOption.targetHeightMm, viewerBounds],
+    () =>
+      getScaledModelDimensions(
+        viewerPrintMetrics,
+        selectedSizeOption.targetHeightMm,
+      ),
+    [selectedSizeOption.targetHeightMm, viewerPrintMetrics],
   );
   const estimatedPriceUsd = useMemo(
-    () => estimatePrintPriceUsd(selectedSize, viewerBounds),
-    [selectedSize, viewerBounds],
+    () => estimatePrintPriceUsd(selectedSize, viewerPrintMetrics),
+    [selectedSize, viewerPrintMetrics],
   );
   const tips = useMemo(() => {
     const assistantMessages = [...(workspace?.selectedMessages ?? [])]
@@ -711,12 +711,12 @@ export default function WorkspaceClient({
 
               <div className="min-h-0 flex-1">
                 <ModelViewer
-                modelUrl={previewModelUrl}
-                onBoundsChange={setViewerBounds}
-                isGenerating={isGeneratingPreview}
-                loadingLabel={previewLoadingLabel}
-                progress={jobProgress?.progress ?? null}
-              />
+                  modelUrl={previewModelUrl}
+                  onPrintMetricsChange={setViewerPrintMetrics}
+                  isGenerating={isGeneratingPreview}
+                  loadingLabel={previewLoadingLabel}
+                  progress={jobProgress?.progress ?? null}
+                />
               </div>
             </div>
 
@@ -729,10 +729,13 @@ export default function WorkspaceClient({
                 <div className="mt-3 grid gap-2">
                   {MODEL_SIZE_OPTIONS.map((option) => {
                     const optionDimensions = getScaledModelDimensions(
-                      viewerBounds,
+                      viewerPrintMetrics,
                       option.targetHeightMm,
                     );
-                    const optionPrice = estimatePrintPriceUsd(option.id, viewerBounds);
+                    const optionPrice = estimatePrintPriceUsd(
+                      option.id,
+                      viewerPrintMetrics,
+                    );
                     return (
                       <label
                         key={option.id}

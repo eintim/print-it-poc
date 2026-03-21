@@ -1,15 +1,11 @@
 "use client";
 
+import type { ModelPrintMetrics } from "@/lib/app-config";
+import { computeMeshPrintStats } from "@/lib/mesh-print-stats";
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-
-type Bounds = {
-  width: number;
-  height: number;
-  depth: number;
-};
 
 function disposeMaterial(material: THREE.Material) {
   const textureKeys = [
@@ -40,13 +36,13 @@ function disposeMaterial(material: THREE.Material) {
 
 export default function ModelViewer({
   modelUrl,
-  onBoundsChange,
+  onPrintMetricsChange,
   isGenerating = false,
   loadingLabel = "Generating 3D preview",
   progress,
 }: {
   modelUrl: string | null;
-  onBoundsChange?: (bounds: Bounds | null) => void;
+  onPrintMetricsChange?: (metrics: ModelPrintMetrics) => void;
   isGenerating?: boolean;
   loadingLabel?: string;
   progress?: number | null;
@@ -65,7 +61,7 @@ export default function ModelViewer({
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount || !modelUrl) {
-      onBoundsChange?.(null);
+      onPrintMetricsChange?.(null);
       return;
     }
 
@@ -152,10 +148,15 @@ export default function ModelViewer({
         controls.target.set(0, size.y * 0.15, 0);
         controls.update();
 
-        onBoundsChange?.({
+        const { triangleCount, solidVolumeModelUnits3 } =
+          computeMeshPrintStats(root);
+
+        onPrintMetricsChange?.({
           width: size.x,
           height: size.y,
           depth: size.z,
+          triangleCount,
+          solidVolumeModelUnits3,
         });
 
         const render = () => {
@@ -175,7 +176,7 @@ export default function ModelViewer({
               ? loadError.message
               : "Could not load the generated model.",
         });
-        onBoundsChange?.(null);
+        onPrintMetricsChange?.(null);
       },
     );
 
@@ -203,7 +204,7 @@ export default function ModelViewer({
       renderer.forceContextLoss();
       mount.innerHTML = "";
     };
-  }, [modelUrl, onBoundsChange]);
+  }, [modelUrl, onPrintMetricsChange]);
 
   const shouldShowLoader = isGenerating || isModelLoading;
 
