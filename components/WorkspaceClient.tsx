@@ -256,7 +256,6 @@ export default function WorkspaceClient({
   const chatMessages = useMemo(() => workspace?.selectedMessages ?? [], [workspace?.selectedMessages]);
   const canGenerate =
     activeSession !== null &&
-    (activeSession.status === "ready" || activeSession.status === "generated") &&
     !!(activeSession.canonicalPrompt ?? activeSession.latestPrompt);
   const currentPrompt = activeSession?.canonicalPrompt ?? activeSession?.latestPrompt ?? "";
   const isGeneratingPreview =
@@ -651,12 +650,18 @@ export default function WorkspaceClient({
                   </p>
                   <span
                     className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                      canGenerate
+                      activeSession?.status === "ready" || activeSession?.status === "generated"
                         ? "bg-[var(--sage-soft)] text-[var(--sage)]"
-                        : "bg-[var(--panel)] text-[var(--muted)]"
+                        : canGenerate
+                          ? "bg-[rgba(253,125,104,0.12)] text-[var(--accent)]"
+                          : "bg-[var(--panel)] text-[var(--muted)]"
                     }`}
                   >
-                    {canGenerate ? "ready" : "draft"}
+                    {activeSession?.status === "ready" || activeSession?.status === "generated"
+                      ? "ready"
+                      : canGenerate
+                        ? "good to go"
+                        : "draft"}
                   </span>
                 </div>
                 <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-[var(--foreground)]">

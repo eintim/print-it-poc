@@ -22,13 +22,6 @@ export async function POST(request: Request) {
       { token },
     );
 
-    if (session.status === "draft") {
-      return NextResponse.json(
-        { error: "Refine the prompt until it is ready before generating." },
-        { status: 400 },
-      );
-    }
-
     const prompt = session.canonicalPrompt ?? session.latestPrompt;
     if (!prompt.trim()) {
       return NextResponse.json(
