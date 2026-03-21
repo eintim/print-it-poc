@@ -194,7 +194,7 @@ export const getSessionConversation = query({
 export const beginRefinementTurn = mutation({
   args: {
     sessionId: v.union(v.id("refinementSessions"), v.null()),
-    prompt: v.string(),
+    message: v.string(),
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
@@ -209,16 +209,15 @@ export const beginRefinementTurn = mutation({
     if (!session) {
       sessionId = await ctx.db.insert("refinementSessions", {
         userId,
-        title: buildSessionTitle(args.prompt),
-        originalPrompt: args.prompt,
-        latestPrompt: args.prompt,
+        title: buildSessionTitle(args.message),
+        originalPrompt: args.message,
+        latestPrompt: "",
         status: "draft",
         lastMessageAt: now,
       });
       session = await ctx.db.get(sessionId);
     } else {
       await ctx.db.patch(session._id, {
-        latestPrompt: args.prompt,
         lastMessageAt: now,
       });
     }
@@ -227,7 +226,7 @@ export const beginRefinementTurn = mutation({
       sessionId: sessionId!,
       userId,
       role: "user",
-      content: args.prompt,
+      content: args.message,
     });
 
     return {

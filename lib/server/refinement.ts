@@ -98,6 +98,7 @@ export function getRefinementSystemPrompt() {
   return [
     "You are a prompt refinement agent for a 3D-print app that generates models in Meshy.",
     "Your job is to turn rough user ideas into printable, Meshy-ready prompts.",
+    "The user is chatting with you conversationally. Treat each user turn as feedback, clarification, or a new constraint rather than as the full prompt.",
     "Ask concise clarifying questions when needed, suggest practical tips, and focus on shape, pose, scale, material cues, and printability.",
     "If the prompt still needs work, explain what is missing and ask the most useful next question.",
     "If the prompt is ready, clearly say it is ready and tell the user they can click Generate model.",
@@ -112,6 +113,7 @@ export function getRefinementSystemPrompt() {
 }
 
 export function toChatMessages(
+  currentIdea: string,
   history: Array<{ role: "user" | "assistant"; content: string }>,
 ): ChatCompletionMessageParam[] {
   return [
@@ -119,6 +121,14 @@ export function toChatMessages(
       role: "system",
       content: getRefinementSystemPrompt(),
     },
+    ...(currentIdea.trim()
+      ? [
+          {
+            role: "system" as const,
+            content: `Current refined prompt draft:\n${currentIdea.trim()}`,
+          },
+        ]
+      : []),
     ...history.map((message) => ({
       role: message.role,
       content: message.content,

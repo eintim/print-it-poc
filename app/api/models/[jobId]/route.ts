@@ -51,9 +51,9 @@ export async function GET(
             progress: refineTask.progress ?? current.job.progress,
             refineTaskId: current.job.refineTaskId,
             errorMessage: getTaskError(refineTask),
-            glbUrl: null,
-            stlUrl: null,
-            thumbnailUrl: refineTask.thumbnail_url ?? null,
+            glbUrl: current.job.glbUrl ?? null,
+            stlUrl: current.job.stlUrl ?? null,
+            thumbnailUrl: refineTask.thumbnail_url ?? current.job.thumbnailUrl ?? null,
           },
           { token },
         );
@@ -119,8 +119,8 @@ export async function GET(
           },
           { token },
         );
-      } else if (previewTask.status === "SUCCEEDED") {
-        const refineTaskId = await createMeshyRefineTask(current.job.previewTaskId);
+      } else if (previewTask.status === "SUCCEEDED" && previewTask.model_urls?.glb) {
+        const refineTaskId = await createMeshyRefineTask(previewTask.id);
         await fetchMutation(
           api.app.updateGenerationJob,
           {

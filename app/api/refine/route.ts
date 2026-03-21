@@ -13,7 +13,7 @@ import { requireRouteToken, routeErrorResponse } from "@/lib/server/route-utils"
 
 const refineRequestSchema = z.object({
   sessionId: z.string().nullable(),
-  prompt: z.string().min(1).max(600),
+  message: z.string().min(1).max(600),
 });
 
 function streamLine(payload: unknown) {
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       api.app.beginRefinementTurn,
       {
         sessionId: body.sessionId as Id<"refinementSessions"> | null,
-        prompt: body.prompt.trim(),
+        message: body.message.trim(),
       },
       { token },
     );
@@ -49,6 +49,7 @@ export async function POST(request: Request) {
         temperature: 0.4,
         stream: true,
         messages: toChatMessages(
+          conversation.session.latestPrompt,
           conversation.messages
             .filter((message) => message.role === "user" || message.role === "assistant")
             .map((message) => ({
@@ -107,7 +108,10 @@ export async function POST(request: Request) {
             );
           }
 
-          const parsed = parseRefinementTranscript(transcript, body.prompt);
+          const parsed = parseRefinementTranscript(
+            transcript,
+            conversation.session.latestPrompt.trim() || body.message.trim(),
+          );
 
           await fetchMutation(
             api.app.completeRefinementTurn,

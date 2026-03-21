@@ -14,15 +14,26 @@ type Bounds = {
 export default function ModelViewer({
   modelUrl,
   onBoundsChange,
+  isGenerating = false,
+  loadingLabel = "Generating 3D preview",
+  progress,
 }: {
   modelUrl: string | null;
   onBoundsChange?: (bounds: Bounds | null) => void;
+  isGenerating?: boolean;
+  loadingLabel?: string;
+  progress?: number | null;
 }) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const [errorState, setErrorState] = useState<{
     modelUrl: string;
     message: string;
   } | null>(null);
+  const [isModelLoading, setIsModelLoading] = useState(false);
+
+  useEffect(() => {
+    setIsModelLoading(Boolean(modelUrl));
+  }, [modelUrl]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -94,6 +105,7 @@ export default function ModelViewer({
         }
 
         setErrorState(null);
+        setIsModelLoading(false);
         const root = gltf.scene;
         scene.add(root);
 
@@ -124,6 +136,7 @@ export default function ModelViewer({
       },
       undefined,
       (loadError) => {
+        setIsModelLoading(false);
         setErrorState({
           modelUrl,
           message:
@@ -145,7 +158,9 @@ export default function ModelViewer({
     };
   }, [modelUrl, onBoundsChange]);
 
-  if (!modelUrl) {
+  const shouldShowLoader = isGenerating || isModelLoading;
+
+  if (!modelUrl && !shouldShowLoader) {
     return (
       <div className="flex h-[420px] items-center justify-center rounded-3xl border border-white/10 bg-slate-950/70 text-center text-sm text-slate-400">
         Generate a model to preview it here.
@@ -155,7 +170,35 @@ export default function ModelViewer({
 
   return (
     <div className="relative h-[420px] overflow-hidden rounded-3xl border border-white/10 bg-slate-950 shadow-2xl">
-      <div ref={mountRef} className="h-full w-full" />
+      {modelUrl ? <div ref={mountRef} className="h-full w-full" /> : null}
+      {!modelUrl ? (
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.16),transparent_38%),linear-gradient(180deg,rgba(15,23,42,0.98),rgba(2,6,23,0.98))]" />
+      ) : null}
+      {shouldShowLoader ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-slate-950/72 backdrop-blur-sm">
+          <div className="relative flex h-24 w-24 items-center justify-center">
+            <div className="absolute h-24 w-24 rounded-full border border-cyan-300/20" />
+            <div className="absolute h-24 w-24 animate-ping rounded-full border border-cyan-300/30" />
+            <div className="h-16 w-16 animate-spin rounded-full border-4 border-cyan-300/25 border-t-cyan-300 shadow-[0_0_32px_rgba(34,211,238,0.35)]" />
+            <div className="absolute h-4 w-4 rounded-full bg-cyan-300 shadow-[0_0_24px_rgba(34,211,238,0.9)]" />
+          </div>
+          <div className="space-y-2 text-center">
+            <p className="text-sm font-medium tracking-[0.22em] text-cyan-100 uppercase">
+              {loadingLabel}
+            </p>
+            <div className="flex items-center justify-center gap-2">
+              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-cyan-300 [animation-delay:-0.3s]" />
+              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-cyan-200 [animation-delay:-0.15s]" />
+              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-cyan-100" />
+            </div>
+            <p className="text-xs text-slate-300">
+              {progress !== null && progress !== undefined
+                ? `${Math.max(progress, 0)}% complete`
+                : "Preparing the viewer..."}
+            </p>
+          </div>
+        </div>
+      ) : null}
       {errorState?.modelUrl === modelUrl ? (
         <div className="absolute inset-0 flex items-center justify-center bg-slate-950/90 p-6 text-center text-sm text-rose-300">
           {errorState.message}

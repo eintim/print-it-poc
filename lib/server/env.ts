@@ -30,7 +30,11 @@ export function getMeshyBaseUrl() {
 }
 
 export function getMeshyModel() {
-  return process.env.MESHY_MODEL ?? "latest";
+  return process.env.MESHY_MODEL ?? "meshy-5";
+}
+
+export function getMeshyUseMock() {
+  return process.env.MESHY_USE_MOCK === "true";
 }
 
 export function getAppTitle() {

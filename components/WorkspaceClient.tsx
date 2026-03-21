@@ -7,7 +7,7 @@ import ModelViewer from "@/components/ModelViewer";
 import PrintOrderForm from "@/components/PrintOrderForm";
 import { useConvexAuth, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type StreamEvent =
   | { type: "session"; sessionId: string }
@@ -84,10 +84,12 @@ export default function WorkspaceClient() {
   const router = useRouter();
   const { isLoading, isAuthenticated } = useConvexAuth();
   const { signOut } = useAuthActions();
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const [selectedSessionId, setSelectedSessionId] =
     useState<Id<"refinementSessions"> | null>(null);
   const [creatingNewSession, setCreatingNewSession] = useState(false);
-  const [draftPrompt, setDraftPrompt] = useState("");
+  const [chatInput, setChatInput] = useState("");
+  const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
   const [streamingResponse, setStreamingResponse] = useState("");
   const [requestError, setRequestError] = useState<string | null>(null);
   const [isRefining, setIsRefining] = useState(false);
@@ -100,9 +102,30 @@ export default function WorkspaceClient() {
   const [viewerBounds, setViewerBounds] = useState<ViewerBounds>(null);
   const [orderMessage, setOrderMessage] = useState<string | null>(null);
 
-  const workspace = useQuery(api.app.getWorkspace, {
+  const resetTransientState = useCallback(() => {
+    setChatInput("");
+    setPendingUserMessage(null);
+    setStreamingResponse("");
+    setRequestError(null);
+    setPollJobId(null);
+    setPollError(null);
+    setJobProgress(null);
+    setViewerBounds(null);
+    setOrderMessage(null);
+  }, []);
+
+  const rawWorkspace = useQuery(api.app.getWorkspace, {
     sessionId: selectedSessionId,
   });
+  const [cachedWorkspace, setCachedWorkspace] = useState<typeof rawWorkspace>(undefined);
+
+  useEffect(() => {
+    if (rawWorkspace !== undefined) {
+      setCachedWorkspace(rawWorkspace);
+    }
+  }, [rawWorkspace]);
+
+  const workspace = rawWorkspace ?? cachedWorkspace;
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -117,21 +140,20 @@ export default function WorkspaceClient() {
   }, [creatingNewSession, selectedSessionId, workspace?.selectedSession?._id]);
 
   useEffect(() => {
-    if (!creatingNewSession) {
-      setDraftPrompt(workspace?.selectedSession?.latestPrompt ?? "");
+    if (
+      creatingNewSession &&
+      selectedSessionId &&
+      rawWorkspace?.selectedSession?._id === selectedSessionId
+    ) {
+      setCreatingNewSession(false);
     }
-    setStreamingResponse("");
-    setRequestError(null);
-    setOrderMessage(null);
-  }, [
-    creatingNewSession,
-    workspace?.selectedSession?._id,
-    workspace?.selectedSession?.latestPrompt,
-  ]);
+  }, [creatingNewSession, rawWorkspace?.selectedSession?._id, selectedSessionId]);
 
   useEffect(() => {
     const currentJob = workspace?.currentJob;
     if (!currentJob) {
+      setPollJobId(null);
+      setJobProgress(null);
       return;
     }
     if (
@@ -193,11 +215,31 @@ export default function WorkspaceClient() {
   }, [pollJobId]);
 
   const activeSession = creatingNewSession ? null : workspace?.selectedSession ?? null;
-  const activeModel = workspace?.currentModel ?? workspace?.recentModels[0] ?? null;
+  const activeModel = creatingNewSession ? null : workspace?.currentModel ?? null;
+  const currentJob = creatingNewSession ? null : workspace?.currentJob ?? null;
+  const chatMessages = useMemo(
+    () => (creatingNewSession ? [] : workspace?.selectedMessages ?? []),
+    [creatingNewSession, workspace?.selectedMessages],
+  );
   const canGenerate =
     activeSession !== null &&
     (activeSession.status === "ready" || activeSession.status === "generated") &&
     !!(activeSession.canonicalPrompt ?? activeSession.latestPrompt);
+  const currentPrompt = activeSession?.canonicalPrompt ?? activeSession?.latestPrompt ?? "";
+  const isGeneratingPreview =
+    jobProgress?.status === "preview_pending" || jobProgress?.status === "refine_pending";
+  const previewJobId = activeModel?.generationJobId ?? currentJob?._id ?? null;
+  const previewModelUrl =
+    previewJobId && (activeModel?.glbUrl ?? currentJob?.glbUrl)
+      ? `/api/models/${previewJobId}/asset/glb`
+      : null;
+  const previewDownloadUrl =
+    previewJobId && (activeModel?.stlUrl ?? currentJob?.stlUrl)
+      ? `/api/models/${previewJobId}/asset/stl`
+      : null;
+  const previewLoadingLabel = isGeneratingPreview
+    ? jobLabel(jobProgress.status)
+    : "Loading 3D preview";
   const tips = useMemo(() => {
     if (creatingNewSession) {
       return [];
@@ -208,14 +250,42 @@ export default function WorkspaceClient() {
     return assistantMessages?.tips ?? [];
   }, [creatingNewSession, workspace?.selectedMessages]);
 
+  useEffect(() => {
+    const chatContainer = chatScrollRef.current;
+    if (!chatContainer) {
+      return;
+    }
+
+    chatContainer.scrollTo({
+      top: chatContainer.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [chatMessages, streamingResponse]);
+
+  useEffect(() => {
+    if (!pendingUserMessage || chatMessages.length === 0) {
+      return;
+    }
+
+    const lastUserMessage = [...chatMessages]
+      .reverse()
+      .find((message) => message.role === "user");
+
+    if (lastUserMessage?.content === pendingUserMessage) {
+      setPendingUserMessage(null);
+    }
+  }, [chatMessages, pendingUserMessage]);
+
   const handleRefine = useCallback(async () => {
-    const trimmed = draftPrompt.trim();
+    const trimmed = chatInput.trim();
     if (!trimmed) {
-      setRequestError("Add a prompt before starting refinement.");
+      setRequestError("Add a message before continuing refinement.");
       return;
     }
 
     setIsRefining(true);
+    setChatInput("");
+    setPendingUserMessage(trimmed);
     setStreamingResponse("");
     setRequestError(null);
 
@@ -227,7 +297,7 @@ export default function WorkspaceClient() {
         },
         body: JSON.stringify({
           sessionId: activeSession?._id ?? null,
-          prompt: trimmed,
+          message: trimmed,
         }),
       });
 
@@ -238,7 +308,6 @@ export default function WorkspaceClient() {
 
       await readNdjsonStream(response, (event) => {
         if (event.type === "session") {
-          setCreatingNewSession(false);
           setSelectedSessionId(event.sessionId as Id<"refinementSessions">);
           return;
         }
@@ -254,16 +323,18 @@ export default function WorkspaceClient() {
         }
 
         if (event.type === "final") {
-          setDraftPrompt(event.latestPrompt);
+          setPendingUserMessage(null);
           setStreamingResponse("");
         }
       });
     } catch (error) {
+      setChatInput(trimmed);
+      setPendingUserMessage(null);
       setRequestError(error instanceof Error ? error.message : "Refinement failed.");
     } finally {
       setIsRefining(false);
     }
-  }, [activeSession?._id, draftPrompt]);
+  }, [activeSession?._id, chatInput]);
 
   const handleGenerate = useCallback(async () => {
     if (!activeSession?._id) {
@@ -336,7 +407,7 @@ export default function WorkspaceClient() {
   }
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#15203d,_#020617_55%)] text-slate-100">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#15203d,#020617_55%)] text-slate-100">
       <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6 py-8">
         <header className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -373,10 +444,9 @@ export default function WorkspaceClient() {
               <button
                 className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300"
                 onClick={() => {
+                  resetTransientState();
                   setCreatingNewSession(true);
                   setSelectedSessionId(null);
-                  setDraftPrompt("");
-                  setStreamingResponse("");
                 }}
               >
                 New
@@ -391,7 +461,11 @@ export default function WorkspaceClient() {
                       ? "border-cyan-400 bg-cyan-400/10"
                       : "border-white/10 bg-slate-950/40 hover:bg-white/5"
                   }`}
-                  onClick={() => setSelectedSessionId(session._id)}
+                  onClick={() => {
+                    resetTransientState();
+                    setCreatingNewSession(false);
+                    setSelectedSessionId(session._id);
+                  }}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <p className="font-medium text-white">{session.title}</p>
@@ -400,7 +474,7 @@ export default function WorkspaceClient() {
                     </span>
                   </div>
                   <p className="mt-2 line-clamp-2 text-sm text-slate-400">
-                    {session.latestPrompt}
+                    {session.latestPrompt || session.originalPrompt}
                   </p>
                 </button>
               ))}
@@ -414,171 +488,181 @@ export default function WorkspaceClient() {
           </aside>
 
           <section className="space-y-6">
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-h-[720px] flex-col rounded-3xl border border-white/10 bg-white/5">
+              <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/10 px-5 py-5">
                 <div>
-                  <h2 className="text-xl font-semibold text-white">
-                    Prompt refinement
-                  </h2>
+                  <h2 className="text-xl font-semibold text-white">Refinement chat</h2>
                   <p className="mt-1 text-sm text-slate-400">
-                    Describe the object you want to print. The backend agent will
-                    tighten the prompt and tell you when it is ready.
+                    Describe the object you want to print and refine it like a
+                    conversation until the prompt is ready.
                   </p>
                 </div>
-                <button
-                  className="rounded-2xl bg-cyan-400 px-4 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
-                  onClick={() => {
-                    void handleRefine();
-                  }}
-                  disabled={isRefining}
-                >
-                  {isRefining ? "Refining..." : "Refine prompt"}
-                </button>
+                <div className="flex flex-wrap items-center gap-3 text-sm">
+                  <span className="rounded-full border border-white/10 px-3 py-1 text-slate-300">
+                    Status: {activeSession?.status ?? "draft"}
+                  </span>
+                  <span className="rounded-full border border-white/10 px-3 py-1 text-slate-300">
+                    Ready: {canGenerate ? "yes" : "not yet"}
+                  </span>
+                  {jobProgress ? (
+                    <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-cyan-100">
+                      {jobLabel(jobProgress.status)} · {jobProgress.progress}%
+                    </span>
+                  ) : null}
+                </div>
               </div>
-              <textarea
-                className="mt-4 min-h-36 w-full rounded-3xl border border-white/10 bg-slate-950/60 px-4 py-4 text-white outline-none placeholder:text-slate-500"
-                placeholder="A stylized dragon mask with clean horn shapes, printable without tiny fragile parts..."
-                value={draftPrompt}
-                onChange={(event) => setDraftPrompt(event.target.value)}
-              />
-              <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
-                <span className="rounded-full border border-white/10 px-3 py-1 text-slate-300">
-                  Status: {activeSession?.status ?? "draft"}
-                </span>
-                <span className="rounded-full border border-white/10 px-3 py-1 text-slate-300">
-                  Ready: {canGenerate ? "yes" : "not yet"}
-                </span>
-                <button
-                  className="rounded-full border border-cyan-400/40 px-3 py-1 text-cyan-200 transition hover:bg-cyan-400/10 disabled:cursor-not-allowed disabled:border-white/10 disabled:text-slate-500"
-                  onClick={() => {
-                    void handleGenerate();
-                  }}
-                  disabled={!canGenerate || isRefining}
-                >
-                  Generate model
-                </button>
-              </div>
-              {requestError ? (
-                <p className="mt-3 rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
-                  {requestError}
-                </p>
-              ) : null}
-            </div>
 
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-              <div className="flex items-center justify-between gap-4">
-                <h3 className="text-lg font-semibold text-white">Refinement chat</h3>
-                {jobProgress ? (
-                  <div className="text-sm text-cyan-200">
-                    {jobLabel(jobProgress.status)} · {jobProgress.progress}%
+              <div
+                ref={chatScrollRef}
+                className="flex-1 space-y-4 overflow-y-auto px-5 py-5"
+              >
+                {chatMessages.length === 0 && !streamingResponse ? (
+                  <div className="flex h-full min-h-64 items-center justify-center">
+                    <p className="max-w-md rounded-3xl border border-dashed border-white/10 px-5 py-4 text-center text-sm leading-6 text-slate-400">
+                      Start with a rough idea. The refinement agent will ask
+                      follow-up questions and shape it into a printable prompt.
+                    </p>
                   </div>
                 ) : null}
-              </div>
-              <div className="mt-4 space-y-3">
-                {(creatingNewSession ? [] : workspace.selectedMessages).map((message) => (
+
+                {chatMessages.map((message) => (
                   <div
                     key={message._id}
-                    className={`rounded-3xl border p-4 ${
-                      message.role === "user"
-                        ? "border-cyan-400/20 bg-cyan-400/10"
-                        : "border-white/10 bg-slate-950/50"
+                    className={`flex ${
+                      message.role === "user" ? "justify-end" : "justify-start"
                     }`}
                   >
-                    <p className="mb-2 text-xs uppercase tracking-[0.22em] text-slate-400">
-                      {message.role}
-                    </p>
-                    <p className="whitespace-pre-wrap text-sm leading-6 text-slate-100">
-                      {message.content}
-                    </p>
+                    <div
+                      className={`max-w-[85%] rounded-[28px] border px-4 py-3 ${
+                        message.role === "user"
+                          ? "border-cyan-400/30 bg-cyan-400/15 text-cyan-50"
+                          : "border-white/10 bg-slate-950/60 text-slate-100"
+                      }`}
+                    >
+                      <p className="mb-2 text-[11px] uppercase tracking-[0.24em] text-slate-400">
+                        {message.role}
+                      </p>
+                      <p className="whitespace-pre-wrap text-sm leading-6">
+                        {message.content}
+                      </p>
+                    </div>
                   </div>
                 ))}
+
+                {pendingUserMessage ? (
+                  <div className="flex justify-end">
+                    <div className="max-w-[85%] rounded-[28px] border border-cyan-400/30 bg-cyan-400/15 px-4 py-3 text-cyan-50">
+                      <p className="mb-2 text-[11px] uppercase tracking-[0.24em] text-slate-400">
+                        user
+                      </p>
+                      <p className="whitespace-pre-wrap text-sm leading-6">
+                        {pendingUserMessage}
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+
                 {streamingResponse ? (
-                  <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
-                    <p className="mb-2 text-xs uppercase tracking-[0.22em] text-slate-400">
-                      assistant
-                    </p>
-                    <p className="whitespace-pre-wrap text-sm leading-6 text-slate-100">
-                      {streamingResponse}
-                    </p>
+                  <div className="flex justify-start">
+                    <div className="max-w-[85%] rounded-[28px] border border-white/10 bg-slate-950/60 px-4 py-3 text-slate-100">
+                      <p className="mb-2 text-[11px] uppercase tracking-[0.24em] text-slate-400">
+                        assistant
+                      </p>
+                      <p className="whitespace-pre-wrap text-sm leading-6">
+                        {streamingResponse}
+                      </p>
+                    </div>
                   </div>
                 ) : null}
               </div>
+
               {tips.length > 0 ? (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {tips.map((tip) => (
-                    <span
-                      key={tip}
-                      className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300"
-                    >
-                      {tip}
-                    </span>
-                  ))}
+                <div className="border-t border-white/10 px-5 py-4">
+                  <div className="flex flex-wrap gap-2">
+                    {tips.map((tip) => (
+                      <span
+                        key={tip}
+                        className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300"
+                      >
+                        {tip}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               ) : null}
-              {pollError ? (
-                <p className="mt-4 rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
-                  {pollError}
-                </p>
-              ) : null}
-            </div>
 
-            <div className="grid gap-6 lg:grid-cols-2">
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-                <h3 className="text-lg font-semibold text-white">Recent models</h3>
-                <div className="mt-4 space-y-3">
-                  {workspace.recentModels.map((model) => (
-                    <div
-                      key={model._id}
-                      className="rounded-2xl border border-white/10 bg-slate-950/40 p-3"
+              <div className="border-t border-white/10 px-5 py-5">
+                <textarea
+                  className="min-h-32 w-full rounded-3xl border border-white/10 bg-slate-950/70 px-4 py-4 text-white outline-none placeholder:text-slate-500"
+                  placeholder="Tell the agent more about what you want to print..."
+                  value={chatInput}
+                  onChange={(event) => setChatInput(event.target.value)}
+                />
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm text-slate-400">
+                    Chat with the agent and it will keep updating the refined idea.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      className="rounded-2xl border border-cyan-400/40 px-4 py-3 font-semibold text-cyan-100 transition hover:bg-cyan-400/10 disabled:cursor-not-allowed disabled:border-white/10 disabled:text-slate-500"
+                      onClick={() => {
+                        void handleGenerate();
+                      }}
+                      disabled={!canGenerate || isRefining}
                     >
-                      <p className="font-medium text-white">{model.status}</p>
-                      <p className="mt-1 line-clamp-2 text-sm text-slate-400">
-                        {model.prompt}
-                      </p>
-                    </div>
-                  ))}
-                  {workspace.recentModels.length === 0 ? (
-                    <p className="text-sm text-slate-400">
-                      Your generated models will show up here.
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-                <h3 className="text-lg font-semibold text-white">Recent orders</h3>
-                <div className="mt-4 space-y-3">
-                  {workspace.recentOrders.map((order) => (
-                    <div
-                      key={order._id}
-                      className="rounded-2xl border border-white/10 bg-slate-950/40 p-3"
+                      Generate model
+                    </button>
+                    <button
+                      className="rounded-2xl bg-cyan-400 px-4 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
+                      onClick={() => {
+                        void handleRefine();
+                      }}
+                      disabled={isRefining}
                     >
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="font-medium text-white">{order.size}</p>
-                        <span className="text-sm text-cyan-200">
-                          {order.targetHeightMm} mm
-                        </span>
-                      </div>
-                      <p className="mt-1 text-sm text-slate-400">{order.email}</p>
-                    </div>
-                  ))}
-                  {workspace.recentOrders.length === 0 ? (
-                    <p className="text-sm text-slate-400">
-                      Quote requests will appear here after you submit one.
-                    </p>
-                  ) : null}
+                      {isRefining ? "Refining..." : "Send message"}
+                    </button>
+                  </div>
                 </div>
+                {requestError ? (
+                  <p className="mt-4 rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+                    {requestError}
+                  </p>
+                ) : null}
+                {pollError ? (
+                  <p className="mt-4 rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+                    {pollError}
+                  </p>
+                ) : null}
               </div>
             </div>
+
           </section>
 
           <aside className="space-y-6">
             <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+              <div className="flex items-center justify-between gap-4">
+                <h2 className="text-lg font-semibold text-white">Current idea</h2>
+                <span className="rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-wide text-cyan-200">
+                  {canGenerate ? "ready" : "in progress"}
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-slate-400">
+                This shows the latest refined prompt returned by the agent and
+                used for generation.
+              </p>
+              <div className="mt-4 rounded-3xl border border-white/10 bg-slate-950/60 p-4">
+                <p className="whitespace-pre-wrap text-sm leading-6 text-slate-100">
+                  {currentPrompt || "The agent's latest refined idea will appear here."}
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-white">3D preview</h2>
-                {activeModel?.stlUrl ? (
+                {previewDownloadUrl ? (
                   <a
-                    href={activeModel.stlUrl}
+                    href={previewDownloadUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="text-sm text-cyan-200 underline underline-offset-4"
@@ -588,17 +672,22 @@ export default function WorkspaceClient() {
                 ) : null}
               </div>
               <ModelViewer
-                modelUrl={activeModel?.glbUrl ?? null}
+                modelUrl={previewModelUrl}
                 onBoundsChange={setViewerBounds}
+                isGenerating={isGeneratingPreview}
+                loadingLabel={previewLoadingLabel}
+                progress={jobProgress?.progress ?? null}
               />
             </div>
 
-            <PrintOrderForm
-              disabled={!activeModel}
-              defaultEmail={workspace.viewer ?? ""}
-              modelBounds={viewerBounds}
-              onSubmit={handleOrderSubmit}
-            />
+            {activeModel ? (
+              <PrintOrderForm
+                disabled={false}
+                defaultEmail={workspace.viewer ?? ""}
+                modelBounds={viewerBounds}
+                onSubmit={handleOrderSubmit}
+              />
+            ) : null}
             {orderMessage ? (
               <p className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
                 {orderMessage}
