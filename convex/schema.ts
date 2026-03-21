@@ -46,6 +46,8 @@ export default defineSchema({
     sessionId: v.id("refinementSessions"),
     prompt: v.string(),
     previewTaskId: v.string(),
+    /** When "image", poll GET /openapi/v1/image-to-3d/:id; otherwise text-to-3d v2. */
+    meshyTaskKind: v.optional(v.union(v.literal("text"), v.literal("image"))),
     refineTaskId: v.optional(v.string()),
     status: v.union(
       v.literal("preview_pending"),

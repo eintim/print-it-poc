@@ -178,6 +178,46 @@ export const getSessionForGeneration = query({
   },
 });
 
+export const prepareImageToModelSession = mutation({
+  args: {
+    sessionId: v.union(v.id("refinementSessions"), v.null()),
+    caption: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUser(ctx);
+    const now = Date.now();
+    const caption = args.caption?.trim() ?? "";
+    const label = caption.length > 0 ? caption : "Image to 3D";
+    const title = buildSessionTitle(label);
+
+    if (args.sessionId) {
+      const session = await ctx.db.get(args.sessionId);
+      if (!session || session.userId !== userId) {
+        throw new Error("Session not found.");
+      }
+      await ctx.db.patch(session._id, {
+        lastMessageAt: now,
+        latestPrompt: label,
+        canonicalPrompt: label,
+        ...(caption ? { title } : {}),
+      });
+      return { sessionId: session._id };
+    }
+
+    const sessionId = await ctx.db.insert("refinementSessions", {
+      userId,
+      title,
+      originalPrompt: label,
+      latestPrompt: label,
+      canonicalPrompt: label,
+      status: "draft",
+      lastMessageAt: now,
+    });
+
+    return { sessionId };
+  },
+});
+
 export const getGenerationJob = query({
   args: {
     jobId: v.id("generationJobs"),
@@ -379,6 +419,7 @@ export const createGenerationJob = mutation({
     sessionId: v.id("refinementSessions"),
     prompt: v.string(),
     previewTaskId: v.string(),
+    meshyTaskKind: v.optional(v.union(v.literal("text"), v.literal("image"))),
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
@@ -392,6 +433,7 @@ export const createGenerationJob = mutation({
       sessionId: session._id,
       prompt: args.prompt,
       previewTaskId: args.previewTaskId,
+      meshyTaskKind: args.meshyTaskKind,
       status: "preview_pending",
       progress: 0,
     });
@@ -647,5 +689,32 @@ export const loadRefinementAttachmentPayloads = action({
     }
 
     return out;
+  },
+});
+
+export const getStorageFileDataUri = action({
+  args: {
+    storageId: v.id("_storage"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Authentication required.");
+    }
+
+    const blob = await ctx.storage.get(args.storageId);
+    if (!blob) {
+      throw new Error("File not found.");
+    }
+
+    const buf = await blob.arrayBuffer();
+    const mimeType =
+      blob.type && blob.type !== "application/octet-stream"
+        ? blob.type
+        : "image/jpeg";
+
+    return {
+      dataUri: `data:${mimeType};base64,${arrayBufferToBase64(buf)}`,
+    };
   },
 });

@@ -31,18 +31,18 @@ export type MeshyTask = {
 const MOCK_PREVIEW_DURATION_MS = 5_000;
 const MOCK_REFINE_DURATION_MS = 5_000;
 
-function buildMockTaskId(mode: "preview" | "refine") {
+function buildMockTaskId(mode: "preview" | "refine" | "image-preview") {
   return `mock-meshy-${mode}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function parseMockTaskId(taskId: string) {
-  const match = /^mock-meshy-(preview|refine)-(\d+)-[a-z0-9]+$/.exec(taskId);
+  const match = /^mock-meshy-(preview|refine|image-preview)-(\d+)-[a-z0-9]+$/.exec(taskId);
   if (!match) {
     return null;
   }
 
   return {
-    mode: match[1] as "preview" | "refine",
+    mode: match[1] as "preview" | "refine" | "image-preview",
     createdAt: Number(match[2]),
   };
 }
@@ -98,7 +98,9 @@ function buildMockTask(taskId: string): MeshyTask {
   }
 
   const durationMs =
-    parsed.mode === "preview" ? MOCK_PREVIEW_DURATION_MS : MOCK_REFINE_DURATION_MS;
+    parsed.mode === "preview" || parsed.mode === "image-preview"
+      ? MOCK_PREVIEW_DURATION_MS
+      : MOCK_REFINE_DURATION_MS;
   const elapsedMs = Math.max(Date.now() - parsed.createdAt, 0);
 
   if (elapsedMs < 1_500) {
@@ -169,10 +171,36 @@ export async function createMeshyPreviewTask(prompt: string) {
   return response.result;
 }
 
-export async function getMeshyTask(taskId: string) {
+/** `imageUrl` may be a public URL or a `data:image/...;base64,...` data URI (Meshy image-to-3d). */
+export async function createMeshyImageTo3dTask(imageUrl: string) {
+  if (getMeshyUseMock()) {
+    return buildMockTaskId("image-preview");
+  }
+
+  const response = await meshyRequest<MeshyCreateTaskResponse>("/openapi/v1/image-to-3d", {
+    method: "POST",
+    body: JSON.stringify({
+      image_url: imageUrl,
+      ai_model: getMeshyModel(),
+      auto_size: true,
+      should_texture: false,
+      target_formats: ["glb", "stl"],
+    }),
+  });
+
+  return response.result;
+}
+
+export type MeshyTaskKind = "text" | "image";
+
+export async function getMeshyTask(taskId: string, kind: MeshyTaskKind = "text") {
   if (getMeshyUseMock()) {
     return buildMockTask(taskId);
   }
 
-  return meshyRequest<MeshyTask>(`/openapi/v2/text-to-3d/${taskId}`);
+  const path =
+    kind === "image"
+      ? `/openapi/v1/image-to-3d/${taskId}`
+      : `/openapi/v2/text-to-3d/${taskId}`;
+  return meshyRequest<MeshyTask>(path);
 }

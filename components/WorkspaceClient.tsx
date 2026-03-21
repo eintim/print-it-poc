@@ -35,9 +35,6 @@ type StreamEvent =
 
 type WorkspaceScreen = "chat" | "model" | "order";
 
-const REFINEMENT_IMAGE_ONLY_PLACEHOLDER =
-  "(Reference sketch or image attached — use it to infer shape, silhouette, and design intent.)";
-
 const DEFAULT_PROMPT_SUGGESTIONS = [
   "Cleaner silhouette for printing",
   "Add friendly expression & rounded details",
@@ -131,6 +128,15 @@ const STEP_TABS: { id: WorkspaceScreen; label: string; num: string }[] = [
   { id: "model", label: "Customize", num: "2" },
   { id: "order", label: "Order", num: "3" },
 ];
+
+function CustomizePriceSkeleton({ className }: { className?: string }) {
+  return (
+    <div
+      className={`rounded-md bg-[var(--panel)] animate-pulse ${className ?? ""}`}
+      aria-hidden
+    />
+  );
+}
 
 export default function WorkspaceClient({
   initialSessionId = null,
@@ -375,44 +381,89 @@ export default function WorkspaceClient({
     }
   }, [chatMessages, pendingUserMessage]);
 
+  const handleImageToModel = useCallback(async () => {
+    if (!attachmentFile) {
+      return;
+    }
+
+    setIsRefining(true);
+    setRequestError(null);
+    setPollError(null);
+    const trimmed = chatInput.trim();
+    const fileSnapshot = attachmentFile;
+
+    try {
+      const { uploadUrl } = await generateAttachmentUploadUrl();
+      const uploadResponse = await fetch(uploadUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": fileSnapshot.type || "application/octet-stream",
+        },
+        body: fileSnapshot,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("Could not upload the image.");
+      }
+
+      const uploadJson = (await uploadResponse.json()) as { storageId: string };
+
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sessionId: activeSession?._id ?? null,
+          attachmentStorageId: uploadJson.storageId,
+          attachmentContentType: fileSnapshot.type || "image/jpeg",
+          caption: trimmed.length > 0 ? trimmed : null,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Generation failed.");
+      }
+
+      setSelectedSessionId(data.sessionId as Id<"refinementSessions">);
+      setActiveScreen("model");
+      setChatInput("");
+      clearAttachment();
+      setPollJobId(data.jobId as Id<"generationJobs">);
+      setJobProgress({
+        status: "preview_pending",
+        progress: 0,
+      });
+    } catch (error) {
+      setRequestError(
+        error instanceof Error ? error.message : "Generation failed.",
+      );
+    } finally {
+      setIsRefining(false);
+    }
+  }, [
+    activeSession?._id,
+    attachmentFile,
+    chatInput,
+    clearAttachment,
+    generateAttachmentUploadUrl,
+  ]);
+
   const handleRefine = useCallback(async () => {
     const trimmed = chatInput.trim();
-    if (!trimmed && !attachmentFile) {
-      setRequestError("Add a message or attach a reference image or sketch.");
+    if (!trimmed) {
+      setRequestError("Describe your idea to refine it.");
       return;
     }
 
     setIsRefining(true);
     setChatInput("");
-    setPendingUserMessage(trimmed || REFINEMENT_IMAGE_ONLY_PLACEHOLDER);
+    setPendingUserMessage(trimmed);
     setStreamingResponse("");
     setRequestError(null);
 
-    const fileSnapshot = attachmentFile;
-
     try {
-      let attachmentStorageId: string | null = null;
-      let attachmentContentType: string | null = null;
-
-      if (fileSnapshot) {
-        const { uploadUrl } = await generateAttachmentUploadUrl();
-        const uploadResponse = await fetch(uploadUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": fileSnapshot.type || "application/octet-stream",
-          },
-          body: fileSnapshot,
-        });
-
-        if (!uploadResponse.ok) {
-          throw new Error("Could not upload the image.");
-        }
-
-        const uploadJson = (await uploadResponse.json()) as { storageId: string };
-        attachmentStorageId = uploadJson.storageId;
-        attachmentContentType = fileSnapshot.type || "image/jpeg";
-      }
-
       const response = await fetch("/api/refine", {
         method: "POST",
         headers: {
@@ -421,8 +472,8 @@ export default function WorkspaceClient({
         body: JSON.stringify({
           sessionId: activeSession?._id ?? null,
           message: trimmed,
-          attachmentStorageId,
-          attachmentContentType,
+          attachmentStorageId: null,
+          attachmentContentType: null,
         }),
       });
 
@@ -450,7 +501,6 @@ export default function WorkspaceClient({
         if (event.type === "final") {
           setPendingUserMessage(null);
           setStreamingResponse("");
-          clearAttachment();
         }
       });
     } catch (error) {
@@ -460,13 +510,15 @@ export default function WorkspaceClient({
     } finally {
       setIsRefining(false);
     }
-  }, [
-    activeSession?._id,
-    attachmentFile,
-    chatInput,
-    clearAttachment,
-    generateAttachmentUploadUrl,
-  ]);
+  }, [activeSession?._id, chatInput]);
+
+  const handleCreateSubmit = useCallback(() => {
+    if (attachmentFile) {
+      void handleImageToModel();
+    } else {
+      void handleRefine();
+    }
+  }, [attachmentFile, handleImageToModel, handleRefine]);
 
   const handleGenerate = useCallback(async () => {
     if (!activeSession?._id) {
@@ -671,8 +723,8 @@ export default function WorkspaceClient({
                         How do you want to begin?
                       </h3>
                       <p className="animate-fade-up delay-2 mx-auto mt-3 max-w-md text-center text-sm leading-relaxed text-[var(--muted)]">
-                        Image path: these choices stay until you pick a file. Text path: jump into the
-                        composer and this panel closes — you can still attach an image below.
+                        Image path: pick a file, add an optional note, then generate — you go straight to
+                        Customize. Text path: describe your idea here and refine with the assistant first.
                       </p>
 
                       <div className="animate-fade-up delay-3 mt-10 grid gap-4 sm:grid-cols-2 sm:gap-5">
@@ -716,8 +768,8 @@ export default function WorkspaceClient({
                               Sketch or image
                             </span>
                             <span className="block text-sm leading-snug text-[var(--muted)]">
-                              These cards stay until you confirm a file. Then you can add a note
-                              and refine.
+                              After you choose a file, add an optional note and press Generate — Meshy builds
+                              the model from your image.
                             </span>
                           </span>
                           <span className="relative mt-1 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--sage)]">
@@ -787,7 +839,8 @@ export default function WorkspaceClient({
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                         {hasAttachment ? (
                           <p className="text-[11px] leading-snug text-[var(--muted)]">
-                            Short note optional — helps with scale and print settings.
+                            Optional note — saved as the session label. The 3D mesh comes from your image
+                            (Meshy image-to-3D).
                           </p>
                         ) : null}
                         {textStartActive && !hasAttachment ? (
@@ -872,12 +925,12 @@ export default function WorkspaceClient({
                         </div>
                         <h3 className="font-serif text-[1.15rem] font-semibold leading-snug tracking-tight text-[var(--foreground)] sm:text-xl">
                           {hasAttachment
-                            ? "Blend image and words"
+                            ? "Image → 3D preview"
                             : "From idea to a printable prompt"}
                         </h3>
                         <p className="mt-2 max-w-[28ch] text-xs leading-relaxed text-[var(--muted)]">
                           {hasAttachment
-                            ? "Anything you type below travels with your reference. Refine builds the sidebar prompt you will generate from."
+                            ? "Submit sends your image to Meshy image-to-3D and opens Customize while the model generates."
                             : "Chat here to shape the brief. When it feels right, the prompt panel unlocks Generate on the right."}
                         </p>
 
@@ -885,21 +938,43 @@ export default function WorkspaceClient({
                           className="mt-6 flex w-full max-w-sm flex-wrap items-center justify-center gap-x-1 gap-y-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--muted)]"
                           aria-label="Workflow"
                         >
-                          <span className="rounded-full border border-[rgba(186,176,164,0.4)] bg-white/90 px-2.5 py-1 text-[var(--foreground)] shadow-sm">
-                            1 · Describe
-                          </span>
-                          <span className="text-[var(--line-strong)]" aria-hidden>
-                            →
-                          </span>
-                          <span className="rounded-full border border-[rgba(186,176,164,0.4)] bg-white/90 px-2.5 py-1 text-[var(--foreground)] shadow-sm">
-                            2 · Refine
-                          </span>
-                          <span className="text-[var(--line-strong)]" aria-hidden>
-                            →
-                          </span>
-                          <span className="rounded-full border border-[rgba(186,176,164,0.4)] bg-white/90 px-2.5 py-1 text-[var(--foreground)] shadow-sm">
-                            3 · Generate
-                          </span>
+                          {hasAttachment ? (
+                            <>
+                              <span className="rounded-full border border-[rgba(186,176,164,0.4)] bg-white/90 px-2.5 py-1 text-[var(--foreground)] shadow-sm">
+                                1 · Image
+                              </span>
+                              <span className="text-[var(--line-strong)]" aria-hidden>
+                                →
+                              </span>
+                              <span className="rounded-full border border-[rgba(186,176,164,0.4)] bg-white/90 px-2.5 py-1 text-[var(--foreground)] shadow-sm">
+                                2 · Generate
+                              </span>
+                              <span className="text-[var(--line-strong)]" aria-hidden>
+                                →
+                              </span>
+                              <span className="rounded-full border border-[rgba(186,176,164,0.4)] bg-white/90 px-2.5 py-1 text-[var(--foreground)] shadow-sm">
+                                3 · Customize
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="rounded-full border border-[rgba(186,176,164,0.4)] bg-white/90 px-2.5 py-1 text-[var(--foreground)] shadow-sm">
+                                1 · Describe
+                              </span>
+                              <span className="text-[var(--line-strong)]" aria-hidden>
+                                →
+                              </span>
+                              <span className="rounded-full border border-[rgba(186,176,164,0.4)] bg-white/90 px-2.5 py-1 text-[var(--foreground)] shadow-sm">
+                                2 · Refine
+                              </span>
+                              <span className="text-[var(--line-strong)]" aria-hidden>
+                                →
+                              </span>
+                              <span className="rounded-full border border-[rgba(186,176,164,0.4)] bg-white/90 px-2.5 py-1 text-[var(--foreground)] shadow-sm">
+                                3 · Generate
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1046,9 +1121,9 @@ export default function WorkspaceClient({
                       className="min-h-[72px] min-w-0 flex-1 rounded-xl border border-[rgba(186,176,164,0.3)] bg-[var(--cream)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)]/60 focus:border-[rgba(165,60,44,0.3)]"
                       placeholder={
                         hasMessages
-                          ? "Describe your idea (optional if you attached an image)..."
+                          ? "Describe your idea…"
                           : hasAttachment
-                            ? "Optional: add context for your sketch or photo…"
+                            ? "Optional note for your file name or print intent…"
                             : "Describe shape, mood, material, or how it should print…"
                       }
                       value={chatInput}
@@ -1056,24 +1131,23 @@ export default function WorkspaceClient({
                       onKeyDown={(event) => {
                         if (event.key === "Enter" && !event.shiftKey) {
                           event.preventDefault();
-                          void handleRefine();
+                          handleCreateSubmit();
                         }
                       }}
                     />
                     <button
                       className="btn-copper shrink-0 rounded-xl px-5 py-3 text-sm"
-                      onClick={() => {
-                        void handleRefine();
-                      }}
-                      disabled={
-                        isRefining || (!chatInput.trim() && !attachmentFile)
-                      }
+                      type="button"
+                      onClick={handleCreateSubmit}
+                      disabled={isRefining || (!attachmentFile && !chatInput.trim())}
                     >
                       {isRefining ? (
                         <span className="flex items-center gap-2">
                           <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                          Refining
+                          {attachmentFile ? "Generating" : "Refining"}
                         </span>
+                      ) : attachmentFile ? (
+                        "Generate 3D model"
                       ) : (
                         "Refine"
                       )}
@@ -1165,7 +1239,10 @@ export default function WorkspaceClient({
               </div>
             </div>
 
-            <aside className="flex w-full shrink-0 flex-col gap-3 xl:w-[280px]">
+            <aside
+              className="flex w-full shrink-0 flex-col gap-3 xl:w-[280px]"
+              aria-busy={isGeneratingPreview}
+            >
               {/* Size selector */}
               <div className="rounded-2xl bg-white p-4 shadow-[0_8px_24px_rgba(93,64,43,0.06)]">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
@@ -1197,18 +1274,24 @@ export default function WorkspaceClient({
                           checked={selectedSize === option.id}
                           onChange={() => setSelectedSize(option.id)}
                         />
-                        <div className="flex items-center justify-between">
-                          <div>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
                             <p className="text-sm font-bold text-[var(--foreground)]">{option.label}</p>
                             <p className="text-[11px] text-[var(--muted)]">
-                              {optionDimensions
-                                ? `${optionDimensions.widthMm}×${optionDimensions.heightMm}×${optionDimensions.depthMm} mm`
-                                : `${option.targetHeightMm} mm tall`}
+                              {isGeneratingPreview
+                                ? `${option.targetHeightMm} mm tall`
+                                : optionDimensions
+                                  ? `${optionDimensions.widthMm}×${optionDimensions.heightMm}×${optionDimensions.depthMm} mm`
+                                  : `${option.targetHeightMm} mm tall`}
                             </p>
                           </div>
-                          <p className="text-sm font-bold text-[var(--accent)]">
-                            {formatUsd(optionPrice)}
-                          </p>
+                          {isGeneratingPreview ? (
+                            <CustomizePriceSkeleton className="h-5 w-[4.25rem] shrink-0" />
+                          ) : (
+                            <p className="shrink-0 text-sm font-bold text-[var(--accent)]">
+                              {formatUsd(optionPrice)}
+                            </p>
+                          )}
                         </div>
                       </label>
                     );
@@ -1221,14 +1304,24 @@ export default function WorkspaceClient({
                 <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
                   Estimated total
                 </p>
-                <p className="mt-1 font-serif text-3xl font-semibold text-[var(--accent)]">
-                  {formatUsd(estimatedPriceUsd)}
-                </p>
-                {scaledDimensions ? (
-                  <p className="mt-2 text-xs text-[var(--muted)]">
-                    {scaledDimensions.widthMm} × {scaledDimensions.heightMm} × {scaledDimensions.depthMm} mm
-                  </p>
-                ) : null}
+                {isGeneratingPreview ? (
+                  <>
+                    <span className="sr-only">Prices appear when your model is ready.</span>
+                    <CustomizePriceSkeleton className="mt-2 h-9 w-32" />
+                    <CustomizePriceSkeleton className="mt-3 h-3 w-40" />
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-1 font-serif text-3xl font-semibold text-[var(--accent)]">
+                      {formatUsd(estimatedPriceUsd)}
+                    </p>
+                    {scaledDimensions ? (
+                      <p className="mt-2 text-xs text-[var(--muted)]">
+                        {scaledDimensions.widthMm} × {scaledDimensions.heightMm} × {scaledDimensions.depthMm} mm
+                      </p>
+                    ) : null}
+                  </>
+                )}
               </div>
 
               {/* Actions */}

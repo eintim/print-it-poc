@@ -5,6 +5,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import {
   getMeshyTask,
   type MeshyTask,
+  type MeshyTaskKind,
 } from "@/lib/server/meshy";
 import { requireRouteToken, routeErrorResponse } from "@/lib/server/route-utils";
 
@@ -38,7 +39,9 @@ export async function GET(
       return buildResponse(current);
     }
 
-    const previewTask = await getMeshyTask(current.job.previewTaskId);
+    const meshyKind: MeshyTaskKind =
+      current.job.meshyTaskKind === "image" ? "image" : "text";
+    const previewTask = await getMeshyTask(current.job.previewTaskId, meshyKind);
 
     if (previewTask.status === "FAILED") {
       await fetchMutation(
