@@ -45,6 +45,37 @@ const DEFAULT_PROMPT_SUGGESTIONS = [
   "Keep overhangs gentle for reliability",
 ];
 
+/** Shown in the chat canvas when the composer is open but there are no messages yet. */
+const COMPOSER_EMPTY_TEXT_IDEAS: { short: string; full: string }[] = [
+  {
+    short: "Bookends",
+    full: "Tiny brutalist bookend pair, concrete texture, flat base for stability",
+  },
+  {
+    short: "Cloud planter",
+    full: "Whimsical cloud-shaped planter with a drainage hole and soft edges",
+  },
+  {
+    short: "Lamp base",
+    full: "Art deco desk lamp base—geometric fluting, solid and printable",
+  },
+];
+
+const COMPOSER_EMPTY_IMAGE_HINTS: { short: string; full: string }[] = [
+  {
+    short: "Simplify",
+    full: "Keep the silhouette; simplify small details for reliable printing",
+  },
+  {
+    short: "Flat base",
+    full: "Add a flat base so it stands; gentle overhangs only",
+  },
+  {
+    short: "~120mm desk",
+    full: "Scale for desk display (~120mm tall), mention wall thickness",
+  },
+];
+
 function jobLabel(status: string) {
   switch (status) {
     case "preview_pending":
@@ -511,6 +542,8 @@ export default function WorkspaceClient({
   const hasAttachment = Boolean(attachmentFile);
   const showStarterCards = !hasMessages && !hasAttachment && !textStartActive;
   const showChatComposer = hasMessages || textStartActive || hasAttachment;
+  const showComposerEmptyCanvas =
+    showChatComposer && !hasMessages && !showStarterCards;
 
   useEffect(() => {
     if (!textStartActive || !showChatComposer || hasMessages) {
@@ -748,6 +781,131 @@ export default function WorkspaceClient({
                   </div>
                 ) : null}
 
+                {showComposerEmptyCanvas ? (
+                  <div className="flex min-h-0 flex-1 flex-col">
+                    <div className="shrink-0 border-b border-[rgba(186,176,164,0.12)] pb-3">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        {hasAttachment ? (
+                          <p className="text-[11px] leading-snug text-[var(--muted)]">
+                            Short note optional — helps with scale and print settings.
+                          </p>
+                        ) : null}
+                        {textStartActive && !hasAttachment ? (
+                          <button
+                            type="button"
+                            onClick={() => setTextStartActive(false)}
+                            className="text-[11px] font-medium text-[var(--muted)] underline decoration-[rgba(120,113,108,0.3)] underline-offset-2 transition hover:text-[var(--accent)] hover:decoration-[rgba(194,65,12,0.4)]"
+                          >
+                            ← Starting choices
+                          </button>
+                        ) : null}
+                      </div>
+                      <div className="custom-scrollbar mt-2 flex items-center gap-1.5 overflow-x-auto pb-0.5">
+                        <span className="shrink-0 text-[10px] font-medium text-[var(--muted)]">
+                          Try
+                        </span>
+                        {(hasAttachment
+                          ? COMPOSER_EMPTY_IMAGE_HINTS
+                          : COMPOSER_EMPTY_TEXT_IDEAS
+                        ).map((idea) => (
+                          <button
+                            key={idea.full}
+                            type="button"
+                            title={idea.full}
+                            onClick={() => {
+                              setChatInput((current) =>
+                                current.trim()
+                                  ? `${current.trim()}\n${idea.full}`
+                                  : idea.full,
+                              );
+                              chatTextareaRef.current?.focus({ preventScroll: true });
+                            }}
+                            className="shrink-0 rounded-full border border-[rgba(186,176,164,0.45)] bg-[var(--cream)]/80 px-2.5 py-0.5 text-[10px] font-medium text-[var(--foreground)] transition hover:border-[rgba(194,65,12,0.45)] hover:bg-white"
+                          >
+                            {idea.short}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="relative mt-3 flex min-h-[min(200px,36vh)] flex-1 flex-col items-center justify-center px-2 py-6 sm:px-4">
+                      <div
+                        className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-b from-[rgba(250,243,235,0.9)] via-white/40 to-[rgba(253,125,104,0.05)]"
+                        aria-hidden
+                      />
+                      <div
+                        className="pointer-events-none absolute left-1/2 top-1/3 h-40 w-64 -translate-x-1/2 rounded-full bg-[rgba(194,65,12,0.06)] blur-3xl"
+                        aria-hidden
+                      />
+                      <div
+                        className="pointer-events-none absolute bottom-1/4 right-1/4 h-32 w-32 rounded-full bg-[rgba(22,101,52,0.05)] blur-3xl"
+                        aria-hidden
+                      />
+
+                      <div className="relative z-[1] flex max-w-md flex-col items-center text-center">
+                        <div
+                          className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-[rgba(186,176,164,0.28)] bg-white/90 text-[var(--accent)] shadow-sm"
+                          aria-hidden
+                        >
+                          <svg
+                            width="22"
+                            height="22"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2z"
+                              stroke="currentColor"
+                              strokeWidth="1.35"
+                              strokeLinejoin="round"
+                            />
+                            <path
+                              d="M12 22V12M3.34 7L12 12l8.66-5M12 12l8.66 5"
+                              stroke="currentColor"
+                              strokeWidth="1.2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              opacity="0.4"
+                            />
+                          </svg>
+                        </div>
+                        <h3 className="font-serif text-[1.15rem] font-semibold leading-snug tracking-tight text-[var(--foreground)] sm:text-xl">
+                          {hasAttachment
+                            ? "Blend image and words"
+                            : "From idea to a printable prompt"}
+                        </h3>
+                        <p className="mt-2 max-w-[28ch] text-xs leading-relaxed text-[var(--muted)]">
+                          {hasAttachment
+                            ? "Anything you type below travels with your reference. Refine builds the sidebar prompt you will generate from."
+                            : "Chat here to shape the brief. When it feels right, the prompt panel unlocks Generate on the right."}
+                        </p>
+
+                        <div
+                          className="mt-6 flex w-full max-w-sm flex-wrap items-center justify-center gap-x-1 gap-y-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--muted)]"
+                          aria-label="Workflow"
+                        >
+                          <span className="rounded-full border border-[rgba(186,176,164,0.4)] bg-white/90 px-2.5 py-1 text-[var(--foreground)] shadow-sm">
+                            1 · Describe
+                          </span>
+                          <span className="text-[var(--line-strong)]" aria-hidden>
+                            →
+                          </span>
+                          <span className="rounded-full border border-[rgba(186,176,164,0.4)] bg-white/90 px-2.5 py-1 text-[var(--foreground)] shadow-sm">
+                            2 · Refine
+                          </span>
+                          <span className="text-[var(--line-strong)]" aria-hidden>
+                            →
+                          </span>
+                          <span className="rounded-full border border-[rgba(186,176,164,0.4)] bg-white/90 px-2.5 py-1 text-[var(--foreground)] shadow-sm">
+                            3 · Generate
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
                 {chatMessages.map((message) => (
                   <div
                     key={message._id}
@@ -874,12 +1032,12 @@ export default function WorkspaceClient({
                       </button>
                     </div>
                   ) : null}
-                  <div className="flex flex-wrap items-end gap-2 sm:flex-nowrap">
+                  <div className="flex flex-wrap items-stretch gap-2 sm:flex-nowrap">
                     <button
                       type="button"
                       onClick={() => attachmentInputRef.current?.click()}
                       disabled={isRefining}
-                      className="shrink-0 rounded-xl border border-[rgba(186,176,164,0.35)] bg-[var(--cream)] px-3 py-3 text-xs font-bold uppercase tracking-wide text-[var(--muted)] transition hover:border-[rgba(165,60,44,0.35)] hover:text-[var(--accent)] disabled:opacity-40"
+                      className="inline-flex shrink-0 items-center justify-center rounded-xl border border-[rgba(186,176,164,0.35)] bg-[var(--cream)] px-3 text-xs font-bold uppercase tracking-wide text-[var(--muted)] transition hover:border-[rgba(165,60,44,0.35)] hover:text-[var(--accent)] disabled:opacity-40"
                     >
                       Image
                     </button>
@@ -903,7 +1061,7 @@ export default function WorkspaceClient({
                       }}
                     />
                     <button
-                      className="btn-copper shrink-0 self-end rounded-xl px-5 py-3 text-sm"
+                      className="btn-copper shrink-0 rounded-xl px-5 py-3 text-sm"
                       onClick={() => {
                         void handleRefine();
                       }}
