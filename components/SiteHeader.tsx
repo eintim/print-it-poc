@@ -46,7 +46,7 @@ export default function SiteHeader() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-[var(--line)] glass">
+    <header className="sticky top-0 z-50 border-b border-[var(--line)] bg-[var(--background)]">
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-3">
         <Link href="/" className="group flex items-center gap-2.5">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent)] font-serif text-sm font-bold text-white shadow-[0_2px_8px_rgba(194,65,12,0.25)] transition-transform group-hover:scale-105">
