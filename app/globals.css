@@ -14,6 +14,9 @@
   --accent-glow: rgba(194, 65, 12, 0.12);
   --sage: #166534;
   --sage-soft: #dcfce7;
+  /** Showcase cards: sketch (ink-teal) + chess (warm walnut), vs. brand copper / sage */
+  --showcase-sketch: #2a5f63;
+  --showcase-walnut: #6b4423;
   --cream: #faf3eb;
   --shadow: 0 2px 4px rgba(28, 24, 21, 0.03), 0 12px 36px rgba(28, 24, 21, 0.06);
   --shadow-sm: 0 1px 2px rgba(28, 24, 21, 0.04), 0 4px 12px rgba(28, 24, 21, 0.04);

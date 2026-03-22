@@ -30,9 +30,23 @@ type ShowcaseItem =
       note: string;
       glb?: string;
       thumbnail?: string;
+      /** Shown beside the sketch label (e.g. napkin photo). */
+      sketchImage?: string;
     };
 
 const SHOWCASE_ITEMS: ShowcaseItem[] = [
+  {
+    id: "sketch-robot",
+    prompt: null,
+    sketchLines: true,
+    tag: "From a sketch",
+    rotation: "-1.2deg",
+    accent: "var(--showcase-sketch)",
+    glb: "/showcase/sketch-robot_opti.glb",
+    note: "From a napkin sketch",
+    sketchLabel: "\"Make this little guy real\"",
+    sketchImage: "/showcase/sketch-robot.png",
+  },
   {
     id: "dragon-planter",
     prompt: "A tiny dragon curled around a succulent planter, with scales that double as drainage holes",
@@ -52,22 +66,11 @@ const SHOWCASE_ITEMS: ShowcaseItem[] = [
     note: "Light that paints the wall in soft shapes",
   },
   {
-    id: "sketch-robot",
-    prompt: null,
-    sketchLines: true,
-    tag: "From a sketch",
-    rotation: "-1.2deg",
-    accent: "#7c3aed",
-    glb: "/showcase/sketch-robot_opti.glb",
-    note: "From a napkin sketch",
-    sketchLabel: "\"Make this little guy real\"",
-  },
-  {
     id: "chess-piece",
     prompt: "A chess knight piece but it's a corgi wearing a tiny helmet, about 6cm tall",
     tag: "From words",
     rotation: "1.4deg",
-    accent: "var(--sage)",
+    accent: "var(--showcase-walnut)",
     glb: "/showcase/chess-piece_opti.glb",
     note: "Small enough to hold, full of personality",
   },
@@ -249,8 +252,25 @@ function ShowcaseCard({
       {/* Prompt or sketch first (flows into 3D below) */}
       <div className="mb-3 min-h-[60px]">
         {isSketch ? (
-          <div className="flex items-start gap-2">
-            <SketchDoodle className="mt-1 h-10 w-16 shrink-0" style={{ color: item.accent } as React.CSSProperties} />
+          <div className="flex items-start gap-3">
+            {"sketchImage" in item && item.sketchImage ? (
+              <div
+                className="relative mt-0.5 h-28 w-29 shrink-0 overflow-hidden rounded-lg border-2 border-dashed bg-[var(--panel)]/60"
+                style={{
+                  borderColor: `color-mix(in srgb, ${item.accent} 32%, transparent)`,
+                }}
+              >
+                <Image
+                  src={item.sketchImage}
+                  alt={`Sketch for ${item.sketchLabel}`}
+                  fill
+                  className="object-contain p-1.5"
+                  sizes="116px"
+                />
+              </div>
+            ) : (
+              <SketchDoodle className="mt-1 h-10 w-16 shrink-0" style={{ color: item.accent } as React.CSSProperties} />
+            )}
             <p className="font-serif text-sm italic leading-relaxed text-[var(--foreground)]">
               {item.sketchLabel}
             </p>
@@ -369,12 +389,8 @@ export default function ShowcasePage() {
           ))}
         </div>
 
-        {/* Scattered annotations */}
         <div className="pointer-events-none absolute left-[6%] top-[32%] z-20 hidden max-w-[11rem] rotate-[-8deg] rounded-md border border-[var(--line)] bg-[var(--paper)]/95 px-3 py-2 font-mono text-[11px] font-semibold uppercase leading-snug tracking-[0.12em] text-[var(--accent)] shadow-[var(--shadow-sm)] backdrop-blur-sm lg:block">
           feels instant when you&rsquo;re in the flow →
-        </div>
-        <div className="pointer-events-none absolute bottom-[18%] right-[4%] z-20 hidden max-w-[11rem] rotate-[5deg] rounded-md border border-[var(--line)] bg-[var(--paper)]/95 px-3 py-2 font-mono text-[11px] font-semibold uppercase leading-snug tracking-[0.12em] text-[var(--sage)] shadow-[var(--shadow-sm)] backdrop-blur-sm lg:block">
-          ← napkin sketch energy
         </div>
       </section>
 
