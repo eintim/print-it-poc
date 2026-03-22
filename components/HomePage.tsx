@@ -116,19 +116,13 @@ export default function HomePage() {
         >
           <div className="paper-texture pointer-events-none absolute inset-0 opacity-40" />
           <div className="relative">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <h2
-                id="home-flow-heading"
-                className="font-serif text-2xl font-semibold text-[var(--foreground)] sm:text-3xl"
-              >
-                How the magic is actually just{" "}
-                <span className="italic text-[var(--accent)]">good steps</span>
-              </h2>
-              <p className="max-w-xs text-sm font-medium text-[var(--muted)]">
-                Sketch → 3D Model → real product. Same arc every time — only
-                the thing you’re making changes.
-              </p>
-            </div>
+            <h2
+              id="home-flow-heading"
+              className="font-serif text-2xl font-semibold text-[var(--foreground)] sm:text-3xl"
+            >
+              How the magic is actually just{" "}
+              <span className="italic text-[var(--accent)]">good steps</span>
+            </h2>
 
             <ol className="mt-10 grid gap-5 lg:grid-cols-3">
               {FLOW.map((item, i) => (
@@ -160,45 +154,6 @@ export default function HomePage() {
               ))}
             </ol>
           </div>
-        </section>
-
-        {/* Feature highlights */}
-        <section className="grid gap-4 sm:grid-cols-3" aria-label="Quick capabilities">
-          {[
-            {
-              label: "Refine",
-              emoji: "✏️",
-              desc: "Chat with AI to shape your rough idea into a precise, print-ready prompt.",
-            },
-            {
-              label: "Generate",
-              emoji: "🧊",
-              desc: "Turn the refined prompt into a 3D model you can spin, inspect, and download.",
-            },
-            {
-              label: "Order",
-              emoji: "📦",
-              desc: "Choose a size, get an instant estimate, and request a real print quote.",
-            },
-          ].map((feature, i) => (
-            <div
-              key={feature.label}
-              className={`animate-fade-up craft-card relative overflow-hidden p-5 ${i === 0 ? "delay-1" : i === 1 ? "delay-2" : "delay-3"}`}
-            >
-              <span
-                className="absolute -right-2 -top-2 text-5xl opacity-[0.12]"
-                aria-hidden
-              >
-                {feature.emoji}
-              </span>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--accent)]">
-                {feature.label}
-              </p>
-              <p className="mt-2.5 text-sm leading-relaxed text-[var(--muted)]">
-                {feature.desc}
-              </p>
-            </div>
-          ))}
         </section>
       </div>
 
