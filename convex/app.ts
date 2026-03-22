@@ -277,7 +277,7 @@ export const listIdeas = query({
       .order("desc")
       .paginate(args.paginationOpts);
 
-    const pageWithThumbnails = await Promise.all(
+    const pageWithExtras = await Promise.all(
       paginated.page.map(async (session) => {
         const latestModel = (
           await ctx.db
@@ -295,16 +295,24 @@ export const listIdeas = query({
             .take(1)
         )[0];
 
+        const hasOrder = (
+          await ctx.db
+            .query("printOrders")
+            .withIndex("by_session", (q) => q.eq("sessionId", session._id))
+            .take(1)
+        ).length > 0;
+
         return {
           ...session,
           thumbnailUrl: latestModel?.thumbnailUrl ?? latestJob?.thumbnailUrl ?? null,
+          hasOrder,
         };
       }),
     );
 
     return {
       ...paginated,
-      page: pageWithThumbnails,
+      page: pageWithExtras,
     };
   },
 });

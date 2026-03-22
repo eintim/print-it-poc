@@ -11,6 +11,7 @@ import SiteHeader from "@/components/SiteHeader";
 
 type Idea = Doc<"refinementSessions"> & {
   thumbnailUrl?: string | null;
+  hasOrder?: boolean;
 };
 
 function statusDotColor(status: Idea["status"]) {
@@ -70,8 +71,8 @@ function IdeaCard({ idea }: { idea: Idea }) {
       href={`/create?sessionId=${idea._id}`}
       className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--paper)] transition-all duration-200 hover:border-[var(--line-strong)] hover:shadow-[var(--shadow)]"
     >
-      {idea.thumbnailUrl ? (
-        <div className="relative aspect-[4/3] w-full overflow-hidden bg-[var(--panel)]">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-[var(--panel)]">
+        {idea.thumbnailUrl ? (
           <Image
             src={idea.thumbnailUrl}
             alt={idea.title}
@@ -80,14 +81,60 @@ function IdeaCard({ idea }: { idea: Idea }) {
             sizes="(max-width: 768px) 100vw, 50vw"
             className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           />
-        </div>
-      ) : (
-        <div className="flex aspect-[4/3] w-full items-center justify-center bg-[var(--panel)]">
-          <span className="text-3xl text-[var(--muted)] opacity-30">
-            &#9651;
+        ) : (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-[var(--panel)] to-[var(--cream)]">
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="text-[var(--muted)] opacity-25"
+            >
+              <path
+                d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2z"
+                stroke="currentColor"
+                strokeWidth="1.2"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M12 22V12M3.34 7L12 12l8.66-5"
+                stroke="currentColor"
+                strokeWidth="1"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.5"
+              />
+            </svg>
+            <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-[var(--muted)] opacity-40">
+              No preview yet
+            </span>
+          </div>
+        )}
+
+        {/* Ordered badge */}
+        {idea.hasOrder ? (
+          <span className="absolute left-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-[var(--sage)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white shadow-sm">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden
+            >
+              <path
+                d="M20 6L9 17l-5-5"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Ordered
           </span>
-        </div>
-      )}
+        ) : null}
+      </div>
 
       <div className="flex flex-1 flex-col p-5">
         <h3 className="font-serif text-xl font-semibold leading-snug text-[var(--foreground)] sm:text-[1.35rem]">
