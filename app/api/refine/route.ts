@@ -2,13 +2,13 @@ import { fetchAction, fetchMutation, fetchQuery } from "convex/nextjs";
 import { z } from "zod";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { getOpenAIModel } from "@/lib/server/env";
 import {
+  buildRefinementChatMessages,
   buildSystemInstruction,
-  createGeminiClient,
+  createRefinementOpenAIClient,
   createRefinementStreamFilter,
-  getGeminiRefinementModel,
   parseRefinementTranscript,
-  toGeminiContents,
 } from "@/lib/server/refinement";
 import { requireRouteToken, routeErrorResponse } from "@/lib/server/route-utils";
 
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
       { token },
     );
 
-    const client = createGeminiClient();
+    const client = createRefinementOpenAIClient();
     const encoder = new TextEncoder();
 
     const systemInstruction = buildSystemInstruction(
@@ -76,7 +76,8 @@ export async function POST(request: Request) {
       (message) => message.role === "user" || message.role === "assistant",
     );
 
-    const contents = toGeminiContents(
+    const messages = buildRefinementChatMessages(
+      systemInstruction,
       historyMessages.map((message) => {
         const payload =
           message.role === "user" ? attachmentPayloads[message._id] : undefined;
@@ -94,13 +95,11 @@ export async function POST(request: Request) {
       [...historyMessages].reverse().find((m) => m.role === "user")?.content?.trim() ||
       body.message.trim();
 
-    const response = await client.models.generateContentStream({
-      model: getGeminiRefinementModel(),
-      contents,
-      config: {
-        systemInstruction,
-        temperature: 0.4,
-      },
+    const response = await client.chat.completions.create({
+      model: getOpenAIModel(),
+      messages,
+      temperature: 0.4,
+      stream: true,
     });
 
     let transcript = "";
@@ -119,7 +118,7 @@ export async function POST(request: Request) {
           );
 
           for await (const chunk of response) {
-            const delta = chunk.text;
+            const delta = chunk.choices[0]?.delta?.content;
             if (!delta) {
               continue;
             }

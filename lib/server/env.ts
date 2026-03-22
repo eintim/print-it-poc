@@ -1,4 +1,5 @@
 const MESHY_DEFAULT_BASE_URL = "https://api.meshy.ai";
+const OPENAI_DEFAULT_BASE_URL = "https://api.openai.com/v1";
 
 function required(name: string) {
   const value = process.env[name];
@@ -8,12 +9,22 @@ function required(name: string) {
   return value;
 }
 
-export function getGeminiApiKey() {
-  return required("GEMINI_API_KEY");
+/** API key for refinement chat (OpenAI-compatible `/v1/chat/completions`). */
+export function getOpenAIApiKey() {
+  const key = process.env.OPENAI_API_KEY?.trim();
+  if (!key) {
+    throw new Error("OPENAI_API_KEY is not configured.");
+  }
+  return key;
 }
 
-export function getGeminiModel() {
-  return process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+/** Base URL including `/v1` (e.g. OpenAI, OpenRouter, Gemini OpenAI compat). */
+export function getOpenAIBaseURL() {
+  return process.env.OPENAI_BASE_URL?.trim() || OPENAI_DEFAULT_BASE_URL;
+}
+
+export function getOpenAIModel() {
+  return process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini";
 }
 
 export function getMeshyApiKey() {

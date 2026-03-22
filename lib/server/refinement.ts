@@ -1,14 +1,10 @@
-import {
-  createPartFromBase64,
-  createPartFromText,
-  GoogleGenAI,
-  type Content,
-} from "@google/genai";
+import OpenAI from "openai";
+import type {
+  ChatCompletionContentPart,
+  ChatCompletionMessageParam,
+} from "openai/resources/chat/completions";
 import { z } from "zod";
-import {
-  getGeminiApiKey,
-  getGeminiModel,
-} from "./env";
+import { getOpenAIApiKey, getOpenAIBaseURL } from "./env";
 
 const JSON_START = "<<<REFINEMENT_JSON>>>";
 const JSON_END = "<<<END_REFINEMENT_JSON>>>";
@@ -132,12 +128,11 @@ export function createRefinementStreamFilter(): RefinementStreamFilter {
   };
 }
 
-export function createGeminiClient() {
-  return new GoogleGenAI({ apiKey: getGeminiApiKey() });
-}
-
-export function getGeminiRefinementModel() {
-  return getGeminiModel();
+export function createRefinementOpenAIClient() {
+  return new OpenAI({
+    apiKey: getOpenAIApiKey(),
+    baseURL: getOpenAIBaseURL(),
+  });
 }
 
 export function getRefinementSystemPrompt() {
@@ -198,24 +193,39 @@ export type RefinementHistoryTurn = {
   attachment?: { mimeType: string; base64: string } | null;
 };
 
-export function toGeminiContents(history: RefinementHistoryTurn[]): Content[] {
-  return history.map((message) => {
+export function buildRefinementChatMessages(
+  systemInstruction: string,
+  history: RefinementHistoryTurn[],
+): ChatCompletionMessageParam[] {
+  const messages: ChatCompletionMessageParam[] = [
+    { role: "system", content: systemInstruction },
+  ];
+
+  for (const message of history) {
     if (message.role === "assistant") {
-      return {
-        role: "model" as const,
-        parts: [createPartFromText(message.content)],
-      };
+      messages.push({ role: "assistant", content: message.content });
+      continue;
     }
 
-    const parts = [];
     if (message.attachment) {
-      parts.push(
-        createPartFromBase64(message.attachment.base64, message.attachment.mimeType),
-      );
+      const parts: ChatCompletionContentPart[] = [
+        {
+          type: "image_url",
+          image_url: {
+            url: `data:${message.attachment.mimeType};base64,${message.attachment.base64}`,
+          },
+        },
+      ];
+      if (message.content.trim()) {
+        parts.push({ type: "text", text: message.content });
+      }
+      messages.push({ role: "user", content: parts });
+    } else {
+      messages.push({ role: "user", content: message.content });
     }
-    parts.push(createPartFromText(message.content));
-    return { role: "user" as const, parts };
-  });
+  }
+
+  return messages;
 }
 
 export function parseRefinementTranscript(transcript: string, fallbackPrompt: string) {
