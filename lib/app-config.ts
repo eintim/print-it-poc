@@ -48,8 +48,13 @@ const PRINT_ESTIMATE = {
   resinVolumeToMlFactor: 0.38,
   /** Extra resin for waste/wash/cure. */
   resinWasteMultiplier: 1.22,
-  /** Retail allocation per ml resin. */
-  resinRetailUsdPerMl: 0.85,
+  /**
+   * Variable material line: USD per estimated ml on the build plate (not bottle list price).
+   * Bottle resin is typically ~$0.02–0.06/ml ($20–40/kg); tough/castable runs higher.
+   * This uses ~2× that band to cover supports VAT loss, wash/cure consumables, and a small
+   * shop allocation — still far below the old 0.85 (~$850/L), which overstated resin cost.
+   */
+  resinRetailUsdPerMl: 0.1,
 
   /** Triangles per mm³ of scaled bounding box above → resin-class detail. */
   resinDetailTriPerMm3: 0.01,
@@ -61,6 +66,11 @@ const PRINT_ESTIMATE = {
   /** Log-scaled complexity add before markup (USD, pre-markup). */
   complexityLogScale: 3.2,
   complexityTriDivisor: 6000,
+  /**
+   * AI meshes often have 500k–2M+ triangles; uncapped log complexity dominated quotes.
+   * This limits the triangle surcharge before detail/markup (material is unchanged).
+   */
+  complexityPreMarkupMaxUsd: 12,
 
   /** When mesh volume is missing or absurd, assume bbox is this “full” (5–25%). */
   bboxFallbackFillRatio: 0.16,
@@ -130,10 +140,20 @@ export function estimatePrintPriceUsd(
     scaledDimensions.heightMm *
     scaledDimensions.depthMm;
 
-  const solidScaledMm3 =
+  let solidScaledMm3 =
     metrics.solidVolumeModelUnits3 > 0
       ? metrics.solidVolumeModelUnits3 * scale ** 3
       : scaledBboxVolumeMm3 * PRINT_ESTIMATE.bboxFallbackFillRatio;
+
+  if (!Number.isFinite(solidScaledMm3) || solidScaledMm3 <= 0) {
+    solidScaledMm3 = scaledBboxVolumeMm3 * PRINT_ESTIMATE.bboxFallbackFillRatio;
+  }
+
+  // GLB volume from triangle sum is often wrong (non-manifold, internal faces, duplicates).
+  // Pricing must not treat that as more physical material than fits in the bbox.
+  const maxSolidScaledMm3 =
+    scaledBboxVolumeMm3 * PRINT_ESTIMATE.fillRatioMax;
+  solidScaledMm3 = Math.min(solidScaledMm3, maxSolidScaledMm3);
 
   const fillRatioRaw =
     scaledBboxVolumeMm3 > 0 ? solidScaledMm3 / scaledBboxVolumeMm3 : PRINT_ESTIMATE.fillRatioMax;
@@ -163,9 +183,13 @@ export function estimatePrintPriceUsd(
     materialComponentUsd = grams * PRINT_ESTIMATE.fdmRetailUsdPerGram;
   }
 
-  const complexityPreMarkup =
+  let complexityPreMarkup =
     Math.log(1 + metrics.triangleCount / PRINT_ESTIMATE.complexityTriDivisor) *
     PRINT_ESTIMATE.complexityLogScale;
+  complexityPreMarkup = Math.min(
+    complexityPreMarkup,
+    PRINT_ESTIMATE.complexityPreMarkupMaxUsd,
+  );
 
   const detailMultiplier = 0.85 + 0.35 * fillRatio;
 
