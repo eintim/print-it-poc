@@ -63,7 +63,7 @@ export default function HomeHeroThreePreview({
     keyLight.position.set(6, 8, 4);
     const fillLight = new THREE.DirectionalLight("#ffd3c5", 1.6);
     fillLight.position.set(-4, 3, -6);
-    const rimLight = new THREE.DirectionalLight("#d4ead7", 1.2);
+    const rimLight = new THREE.DirectionalLight("#efe8df", 1.05);
     rimLight.position.set(0, 5, -8);
     scene.add(ambient, keyLight, fillLight, rimLight);
 

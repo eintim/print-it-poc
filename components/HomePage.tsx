@@ -40,13 +40,7 @@ export default function HomePage() {
         {/* Hero — entire card stays within first viewport (header + safe area) */}
         <section className="grain relative max-h-[min(calc(100svh-4.25rem),calc(100dvh-4.25rem))] overflow-hidden rounded-2xl bg-[var(--paper)] p-3 shadow-[var(--shadow)] sm:p-4 lg:rounded-[1.75rem] lg:p-5 xl:p-6">
           <div className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-[rgba(194,65,12,0.07)] blur-3xl" />
-          <div className="pointer-events-none absolute bottom-[-20%] right-[-8%] h-96 w-96 rounded-full bg-[rgba(22,101,52,0.06)] blur-3xl" />
-          <div className="pointer-events-none absolute right-[6%] top-[12%] hidden rotate-12 text-5xl font-black leading-none text-[var(--line)] opacity-[0.3] xl:block">
-            Sketch
-          </div>
-          <div className="pointer-events-none absolute bottom-[18%] left-[4%] hidden -rotate-6 text-6xl font-black leading-none text-[var(--line)] opacity-[0.24] xl:block">
-            3D
-          </div>
+          <div className="pointer-events-none absolute bottom-[-20%] right-[-8%] h-96 w-96 rounded-full bg-[rgba(93,64,43,0.055)] blur-3xl" />
 
           <div className="relative z-10 min-h-0 w-full">
             <div className="grid min-h-0 w-full grid-cols-1 gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:items-stretch lg:gap-6 xl:gap-8">

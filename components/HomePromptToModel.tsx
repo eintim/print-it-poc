@@ -38,7 +38,7 @@ function SketchToModelArrow({
           <linearGradient id={gradId} x1="0%" y1="50%" x2="100%" y2="50%">
             <stop offset="0%" stopColor="#fb923c" />
             <stop offset="55%" stopColor="#f97316" />
-            <stop offset="100%" stopColor="#22c55e" />
+            <stop offset="100%" stopColor="#c2410c" />
           </linearGradient>
         </defs>
 
@@ -90,7 +90,7 @@ function SketchToModelArrow({
           {/* Arrow head */}
           <path
             d="M 126 34 L 140 40 L 126 46 Z"
-            fill="#166534"
+            fill="#9a3412"
             stroke="#2a2421"
             strokeWidth="2"
             strokeLinejoin="round"
@@ -125,7 +125,7 @@ function SketchToModelArrow({
           {[
             { fill: "#fef9c3", r: 3.2, begin: "0s" },
             { fill: "#fdba74", r: 2.6, begin: "0.45s" },
-            { fill: "#bbf7d0", r: 2.8, begin: "0.9s" },
+            { fill: "#fed7aa", r: 2.8, begin: "0.9s" },
           ].map((s, i) => (
             <circle
               key={i}
@@ -158,7 +158,7 @@ function SketchToModelArrow({
       <defs>
         <linearGradient id={gradId} x1="50%" y1="0%" x2="50%" y2="100%">
           <stop offset="0%" stopColor="#fb923c" />
-          <stop offset="100%" stopColor="#22c55e" />
+          <stop offset="100%" stopColor="#c2410c" />
         </linearGradient>
       </defs>
       <path
@@ -193,7 +193,7 @@ function SketchToModelArrow({
       />
       <path
         d="M 18 58 L 24 70 L 30 58 Z"
-        fill="#166534"
+        fill="#9a3412"
         stroke="#2a2421"
         strokeWidth="1.8"
         strokeLinejoin="round"
@@ -339,7 +339,7 @@ export default function HomePromptToModel({
           }}
         />
         <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-[rgba(194,65,12,0.12)] blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-[rgba(22,101,52,0.1)] blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-[rgba(93,64,43,0.07)] blur-3xl" />
 
         <div
           className={`relative z-10 flex flex-col lg:flex-row lg:items-center ${
