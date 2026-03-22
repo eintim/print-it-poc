@@ -22,9 +22,6 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Print It",
   description: "Prompt-to-3D model generation and print quoting.",
-  icons: {
-    icon: "/convex.svg",
-  },
 };
 
 export default function RootLayout({

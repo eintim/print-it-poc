@@ -1,7 +1,10 @@
 "use client";
 
-import { useId } from "react";
 import HomeHeroThreePreview from "@/components/HomeHeroThreePreview";
+
+/** Stable SVG gradient ids — useId() can mismatch SSR vs client under Next/Turbopack. */
+const HOME_PROMPT_BRIDGE_GRAD_V = "home-prompt-bridge-grad-v";
+const HOME_PROMPT_BRIDGE_GRAD_H = "home-prompt-bridge-grad-h";
 
 type HomePromptToModelProps = {
   className?: string;
@@ -315,8 +318,8 @@ export default function HomePromptToModel({
   className = "",
   compact = false,
 }: HomePromptToModelProps) {
-  const bridgeGradH = `${useId().replace(/:/g, "")}-bh`;
-  const bridgeGradV = `${useId().replace(/:/g, "")}-bv`;
+  const bridgeGradV = HOME_PROMPT_BRIDGE_GRAD_V;
+  const bridgeGradH = HOME_PROMPT_BRIDGE_GRAD_H;
 
   return (
     <div

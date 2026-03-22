@@ -7,6 +7,37 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+/** Stable SVG id — avoid useId() here; Next SSR + client can disagree and break hydration. */
+const HEADER_LOGO_GRAD_ID = "site-header-logo-grad";
+
+function HeaderLogoMark() {
+  return (
+    <span
+      className="relative flex h-9 w-9 shrink-0 overflow-hidden rounded-[10px] shadow-[0_2px_14px_rgba(194,65,12,0.2),inset_0_1px_0_rgba(255,255,255,0.25)] ring-1 ring-white/25 transition-[transform,box-shadow] duration-200 ease-out group-hover:scale-[1.04] group-hover:shadow-[0_4px_20px_rgba(194,65,12,0.28),inset_0_1px_0_rgba(255,255,255,0.3)]"
+      aria-hidden
+    >
+      <svg viewBox="0 0 36 36" className="h-full w-full" fill="none">
+        <defs>
+          <linearGradient id={HEADER_LOGO_GRAD_ID} x1="6" y1="4" x2="32" y2="34" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#fb923c" />
+            <stop offset="0.45" stopColor="#ea580c" />
+            <stop offset="1" stopColor="#9a3412" />
+          </linearGradient>
+        </defs>
+        <rect width="36" height="36" rx="10" fill={`url(#${HEADER_LOGO_GRAD_ID})`} />
+        <path
+          d="M6 8c10-2.5 20 2 24 6-4-1.5-9-2.5-14-2.5-6 0-10 1.2-10 1.2Z"
+          fill="white"
+          opacity="0.14"
+        />
+        <rect x="7" y="22" width="22" height="3.5" rx="1.75" fill="white" fillOpacity="0.93" />
+        <rect x="10" y="16" width="16" height="3.5" rx="1.75" fill="white" fillOpacity="0.93" />
+        <rect x="12" y="10" width="12" height="3.5" rx="1.75" fill="white" fillOpacity="0.93" />
+      </svg>
+    </span>
+  );
+}
+
 const NAV_ITEMS_AUTHENTICATED = [
   { href: "/", label: "Home" },
   { href: "/showcase", label: "Showcase" },
@@ -63,12 +94,18 @@ export default function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--line)] bg-[var(--background)]">
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-3">
-        <Link href="/" className="group flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent)] font-serif text-sm font-bold text-white shadow-[0_2px_8px_rgba(194,65,12,0.25)] transition-transform group-hover:scale-105">
-            P
-          </span>
-          <span className="font-serif text-xl font-semibold tracking-tight text-[var(--foreground)]">
-            Print It
+        <Link
+          href="/"
+          className="group flex items-center gap-3 rounded-lg py-0.5 outline-offset-4 focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+          aria-label="Print It home"
+        >
+          <HeaderLogoMark />
+          <span className="font-serif text-[1.125rem] font-semibold leading-none tracking-[-0.02em] sm:text-xl">
+            <span className="text-[var(--foreground)]">Print</span>
+            <span className="font-medium text-[var(--muted)] transition-colors duration-200 group-hover:text-[var(--accent)]">
+              {" "}
+              It
+            </span>
           </span>
         </Link>
 
