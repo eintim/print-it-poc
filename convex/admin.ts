@@ -22,10 +22,13 @@ export const adminStatus = query({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      return { isAdmin: false };
+      return { isAdmin: false, email: null };
     }
     const user = await ctx.db.get(userId);
-    return { isAdmin: emailIsAdmin(user?.email) };
+    return {
+      isAdmin: emailIsAdmin(user?.email),
+      email: user?.email ?? null,
+    };
   },
 });
 

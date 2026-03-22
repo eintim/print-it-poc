@@ -95,7 +95,7 @@ export default function SiteHeader() {
           })}
         </nav>
 
-        <div className="flex items-center gap-3" ref={menuRef}>
+        <div className="relative flex items-center gap-3" ref={menuRef}>
           {isAuthenticated ? (
             <button
               type="button"
@@ -119,7 +119,26 @@ export default function SiteHeader() {
           )}
 
           {isAuthenticated && menuOpen && (
-            <div className="absolute right-6 top-[52px] min-w-[180px] rounded-xl border border-[var(--line)] bg-white p-1 shadow-[var(--shadow-lg)] animate-fade-in">
+            <div className="absolute right-0 top-[calc(100%+0.5rem)] z-50 min-w-[220px] max-w-[min(100vw-2rem,280px)] rounded-xl border border-[var(--line)] bg-white p-1 shadow-[var(--shadow-lg)] animate-fade-in">
+              <div className="border-b border-[var(--line)] px-3 py-2.5">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">
+                  Signed in as
+                </p>
+                <p
+                  className="truncate text-sm font-medium text-[var(--foreground)]"
+                  title={
+                    adminStatus?.email && adminStatus.email.length > 0
+                      ? adminStatus.email
+                      : undefined
+                  }
+                >
+                  {adminStatus === undefined
+                    ? "Loading…"
+                    : adminStatus.email && adminStatus.email.length > 0
+                      ? adminStatus.email
+                      : "Your account"}
+                </p>
+              </div>
               <Link
                 href={ideasHref}
                 className="block rounded-lg px-3 py-2 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--cream)]"

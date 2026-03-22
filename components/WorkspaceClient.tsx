@@ -169,6 +169,7 @@ export default function WorkspaceClient({
   const [isRefining, setIsRefining] = useState(false);
   const [pollJobId, setPollJobId] = useState<Id<"generationJobs"> | null>(null);
   const [pollError, setPollError] = useState<string | null>(null);
+  const [isGenerationStarting, setIsGenerationStarting] = useState(false);
   const [jobProgress, setJobProgress] = useState<{
     status: string;
     progress: number;
@@ -204,6 +205,7 @@ export default function WorkspaceClient({
     setRequestError(null);
     setPollJobId(null);
     setPollError(null);
+    setIsGenerationStarting(false);
     setJobProgress(null);
     setViewerPrintMetrics(null);
     setConfirmedOrderId(null);
@@ -319,7 +321,9 @@ export default function WorkspaceClient({
     !!(activeSession.canonicalPrompt ?? activeSession.latestPrompt);
   const currentPrompt = activeSession?.canonicalPrompt ?? activeSession?.latestPrompt ?? "";
   const isGeneratingPreview =
-    jobProgress?.status === "preview_pending" || jobProgress?.status === "refine_pending";
+    isGenerationStarting ||
+    jobProgress?.status === "preview_pending" ||
+    jobProgress?.status === "refine_pending";
   const previewJobId = activeModel?.generationJobId ?? currentJob?._id ?? null;
   const previewModelUrl =
     previewJobId && (activeModel?.glbUrl ?? currentJob?.glbUrl)
@@ -330,7 +334,7 @@ export default function WorkspaceClient({
       ? `/api/models/${previewJobId}/asset/stl`
       : null;
   const previewLoadingLabel = isGeneratingPreview
-    ? jobLabel(jobProgress.status)
+    ? jobLabel(jobProgress?.status ?? "preview_pending")
     : "Loading 3D preview";
   const selectedSizeOption = useMemo(
     () => getModelSizeOption(selectedSize),
@@ -529,27 +533,36 @@ export default function WorkspaceClient({
     }
 
     setPollError(null);
+    setIsGenerationStarting(true);
     setActiveScreen("model");
-    const response = await fetch("/api/generate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        sessionId: activeSession._id,
-      }),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      setPollError(data.error || "Generation failed.");
-      return;
-    }
+    try {
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sessionId: activeSession._id,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setPollError(data.error || "Generation failed.");
+        return;
+      }
 
-    setPollJobId(data.jobId as Id<"generationJobs">);
-    setJobProgress({
-      status: "preview_pending",
-      progress: 0,
-    });
+      setPollJobId(data.jobId as Id<"generationJobs">);
+      setJobProgress({
+        status: "preview_pending",
+        progress: 0,
+      });
+    } catch (error) {
+      setPollError(
+        error instanceof Error ? error.message : "Generation failed.",
+      );
+    } finally {
+      setIsGenerationStarting(false);
+    }
   }, [activeSession?._id]);
 
   const handleOrderSubmit = useCallback(
@@ -1235,9 +1248,10 @@ export default function WorkspaceClient({
                   <h2 className="font-serif text-xl font-semibold text-[var(--foreground)]">
                     3D Preview
                   </h2>
-                  {jobProgress ? (
+                  {isGeneratingPreview ? (
                     <span className="rounded-full bg-[var(--panel)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
-                      {jobLabel(jobProgress.status)} · {jobProgress.progress}%
+                      {jobLabel(jobProgress?.status ?? "preview_pending")}
+                      {jobProgress ? ` · ${jobProgress.progress}%` : ""}
                     </span>
                   ) : null}
                 </div>
