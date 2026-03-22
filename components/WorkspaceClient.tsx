@@ -27,18 +27,18 @@ type StreamEvent =
       readyToGenerate: boolean;
       latestPrompt: string;
       canonicalPrompt: string | null;
-      tips: string[];
+      nextPrompts: string[];
       title: string;
     }
   | { type: "error"; error: string };
 
 type WorkspaceScreen = "chat" | "model" | "order";
 
-const DEFAULT_PROMPT_SUGGESTIONS = [
-  "Cleaner silhouette for printing",
-  "Add friendly expression & rounded details",
-  "Specify pose, material & finish",
-  "Keep overhangs gentle for reliability",
+const DEFAULT_NEXT_PROMPTS = [
+  "📐 Give it a completely flat base and a cleaner silhouette so it prints reliably",
+  "✨ Add a friendlier expression and softer, rounded edges throughout",
+  "🎨 Switch to a low-poly stylized look with bold planes and simple forms",
+  "🧱 Specify matte ceramic-like finish, gentle overhangs, and desk-friendly size (~120mm tall)",
 ];
 
 /** Shown in the chat canvas when the composer is open but there are no messages yet. */
@@ -71,6 +71,16 @@ const COMPOSER_EMPTY_IMAGE_HINTS: { short: string; full: string }[] = [
     full: "Scale for desk display (~120mm tall), mention wall thickness",
   },
 ];
+
+/** Split "🎨 Do this thing" into icon + body for display; click still uses full original text. */
+function splitLeadingEmojiLine(line: string): { icon: string; body: string } {
+  const t = line.trim();
+  const match = t.match(/^(\p{Extended_Pictographic})(?:\uFE0F)?\s+([\s\S]+)/u);
+  if (match) {
+    return { icon: match[1], body: match[2].trim() };
+  }
+  return { icon: "💬", body: t };
+}
 
 function jobLabel(status: string) {
   switch (status) {
@@ -338,13 +348,14 @@ export default function WorkspaceClient({
     () => estimatePrintPriceUsd(selectedSize, viewerPrintMetrics),
     [selectedSize, viewerPrintMetrics],
   );
-  const tips = useMemo(() => {
+  const assistantNextPrompts = useMemo(() => {
     const assistantMessages = [...(workspace?.selectedMessages ?? [])]
       .reverse()
       .find((message) => message.role === "assistant");
     return assistantMessages?.tips ?? [];
   }, [workspace?.selectedMessages]);
-  const promptSuggestions = tips.length > 0 ? tips : DEFAULT_PROMPT_SUGGESTIONS;
+  const promptSuggestions =
+    assistantNextPrompts.length > 0 ? assistantNextPrompts : DEFAULT_NEXT_PROMPTS;
   const isWorkspaceLoading = isLoading || !workspace;
 
   useEffect(() => {
@@ -442,8 +453,8 @@ export default function WorkspaceClient({
     generateAttachmentUploadUrl,
   ]);
 
-  const handleRefine = useCallback(async () => {
-    const trimmed = chatInput.trim();
+  const submitRefineMessage = useCallback(async (rawMessage: string) => {
+    const trimmed = rawMessage.trim();
     if (!trimmed) {
       setRequestError("Describe your idea to refine it.");
       return;
@@ -502,15 +513,15 @@ export default function WorkspaceClient({
     } finally {
       setIsRefining(false);
     }
-  }, [activeSession?._id, chatInput]);
+  }, [activeSession?._id]);
 
   const handleCreateSubmit = useCallback(() => {
     if (attachmentFile) {
       void handleImageToModel();
     } else {
-      void handleRefine();
+      void submitRefineMessage(chatInput);
     }
-  }, [attachmentFile, handleImageToModel, handleRefine]);
+  }, [attachmentFile, chatInput, handleImageToModel, submitRefineMessage]);
 
   const handleGenerate = useCallback(async () => {
     if (!activeSession?._id) {
@@ -576,13 +587,17 @@ export default function WorkspaceClient({
     [activeModel?._id],
   );
 
-  const handleSuggestionClick = useCallback((suggestion: string) => {
-    setChatInput((current) =>
-      current.trim() ? `${current.trim()}\n${suggestion}` : suggestion,
-    );
-  }, []);
+  const handleNextPromptClick = useCallback(
+    (prompt: string) => {
+      void submitRefineMessage(prompt);
+    },
+    [submitRefineMessage],
+  );
 
   const hasMessages = chatMessages.length > 0 || !!streamingResponse || !!pendingUserMessage;
+  /** Hide chips while /api/refine is streaming so the list updates only when the turn completes. */
+  const showNextPromptSuggestions =
+    hasMessages && !isRefining && !streamingResponse;
   const hasAttachment = Boolean(attachmentFile);
   const showStarterCards = !hasMessages && !hasAttachment && !textStartActive;
   const showChatComposer = hasMessages || textStartActive || hasAttachment;
@@ -1044,19 +1059,37 @@ export default function WorkspaceClient({
                 ) : null}
               </div>
 
-              {/* Suggestion chips (hidden on empty chat so the two start paths stay primary) */}
-              {hasMessages ? (
-                <div className="flex flex-wrap gap-2 border-t border-[rgba(186,176,164,0.18)] px-5 pt-4 pb-2">
-                  {promptSuggestions.map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      type="button"
-                      onClick={() => handleSuggestionClick(suggestion)}
-                      className="rounded-full border border-[var(--line)] px-3 py-1.5 text-xs text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
+              {/* Ready-to-send follow-ups (after refine stream completes, not during tokens) */}
+              {showNextPromptSuggestions ? (
+                <div className="border-t border-[rgba(186,176,164,0.18)] bg-[linear-gradient(180deg,rgba(253,248,242,0.5)_0%,transparent_100%)] px-4 pt-2.5 pb-2">
+                  <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">
+                    ✨ Try a next prompt
+                  </p>
+                  <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                    {promptSuggestions.map((line, index) => {
+                      const { icon, body } = splitLeadingEmojiLine(line);
+                      return (
+                        <li key={`${index}-${line.slice(0, 48)}`} className="min-w-0">
+                          <button
+                            type="button"
+                            title={line.trim()}
+                            onClick={() => handleNextPromptClick(line)}
+                            className="group flex w-full min-h-0 items-center gap-2 rounded-lg border border-[rgba(186,176,164,0.3)] bg-[var(--cream)] px-2.5 py-2 text-left shadow-[0_1px_0_rgba(255,255,255,0.5)_inset] transition hover:border-[rgba(165,60,44,0.4)] hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]"
+                          >
+                            <span
+                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[rgba(253,125,104,0.1)] text-base leading-none transition group-hover:bg-[rgba(253,125,104,0.16)]"
+                              aria-hidden
+                            >
+                              {icon}
+                            </span>
+                            <span className="min-w-0 flex-1 text-left text-sm leading-snug text-[var(--foreground)] line-clamp-2">
+                              {body}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
               ) : null}
 

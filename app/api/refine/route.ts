@@ -163,7 +163,7 @@ export async function POST(request: Request) {
               latestPrompt: parsed.latestPrompt,
               canonicalPrompt: parsed.canonicalPrompt,
               readyToGenerate: parsed.readyToGenerate,
-              tips: parsed.tips,
+              tips: parsed.nextPrompts,
               title: parsed.title,
             },
             { token },

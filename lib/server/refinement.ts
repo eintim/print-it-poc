@@ -17,9 +17,61 @@ const refinementMetadataSchema = z.object({
   readyToGenerate: z.boolean(),
   latestPrompt: z.string().min(1),
   canonicalPrompt: z.string().nullable(),
-  tips: z.array(z.string()).max(4).default([]),
+  /** Concrete messages the user can send next (preferred). */
+  nextPrompts: z.array(z.string()).max(4).optional(),
+  /** @deprecated Model may still emit this; treated like nextPrompts. */
+  tips: z.array(z.string()).max(4).optional(),
   title: z.string().min(1),
 });
+
+/** Body after optional leading emoji + space (for question detection). */
+function textAfterLeadingEmoji(s: string): string {
+  return s
+    .trim()
+    .replace(/^\p{Extended_Pictographic}(?:\uFE0F)?\s+/u, "")
+    .trim();
+}
+
+/**
+ * nextPrompts must be something the user could send as their next message — instructions
+ * or preferences, never questions. Drop question-shaped lines the model still emits.
+ */
+function isDeclarativeNextPrompt(s: string): boolean {
+  const body = textAfterLeadingEmoji(s);
+  if (!body) {
+    return false;
+  }
+  if (body.endsWith("?") || body.endsWith("？")) {
+    return false;
+  }
+  const lower = body.toLowerCase();
+  if (/^(what|which|why|who|when|where)\b/.test(lower)) {
+    return false;
+  }
+  if (
+    /^(would you|do you want|do you prefer|do you like|are you looking|want me to|can we discuss)\b/.test(
+      lower,
+    )
+  ) {
+    return false;
+  }
+  if (/^how (about you|do you|are you|big|tall|large|small|wide|long|many|much)\b/.test(lower)) {
+    return false;
+  }
+  return true;
+}
+
+function normalizeNextPrompts(parsed: z.infer<typeof refinementMetadataSchema>): string[] {
+  const raw =
+    parsed.nextPrompts && parsed.nextPrompts.length > 0
+      ? parsed.nextPrompts
+      : (parsed.tips ?? []);
+  return raw
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+    .filter(isDeclarativeNextPrompt)
+    .slice(0, 4);
+}
 
 function buildSessionTitle(prompt: string) {
   return prompt.trim().slice(0, 48) || "Untitled model";
@@ -107,14 +159,16 @@ CONVERSATION STYLE
 OUTPUT FORMAT — CRITICAL
 Every response MUST begin with a machine-readable JSON block BEFORE any conversational text. Use these exact delimiters:
 ${JSON_START}
-{"readyToGenerate": <boolean>, "latestPrompt": "<current best prompt>", "canonicalPrompt": <string or null>, "tips": [<0-4 short tips>], "title": "<2-6 word session title>"}
+{"readyToGenerate": <boolean>, "latestPrompt": "<current best prompt>", "canonicalPrompt": <string or null>, "nextPrompts": [<0-4 strings>], "title": "<2-6 word session title>"}
 ${JSON_END}
 
 Field rules:
 - readyToGenerate: set this to true as soon as you have ANY reasonable idea of what the user wants. Err heavily on the side of true. The user can always refine more if they choose.
 - latestPrompt: always the current best prompt draft, updated every turn. Fill in sensible defaults for anything the user didn't specify (style, pose, base, proportions).
 - canonicalPrompt: null unless readyToGenerate is true, then the final polished prompt.
-- tips: 0-4 SHORT optional suggestions the user could explore (not questions). Frame as "You could also…" style chips.
+- nextPrompts: 0-4 READY-TO-SEND user messages — each line is a DIRECT INSTRUCTION or preference the user could tap to send. FORBIDDEN in nextPrompts: any question, any "?", any phrasing that asks the user for a choice or clarification (e.g. "Would you like…", "Do you want…", "Which style…", "What color…", "How tall should…"). Use imperative or first-person statements only, e.g. "Make the base completely flat", "I'd like a matte ceramic look", "Add small wings and a friendly face", "Scale it for desk display around 120mm tall". Start each string with ONE relevant emoji (e.g. 🎨 📐 ✨ 🧱) then a space, then the statement. Keep each under ~160 characters. If you have no good non-question refinements to offer, use [].
+- nextPrompts examples (GOOD): "📐 Make the bottom perfectly flat for printing", "✨ Give it softer edges and a playful expression"
+- nextPrompts examples (BAD — never do this): "🎨 Do you prefer matte or glossy?", "Which pose do you want?", "What size should it be?"
 - title: a short session title summarizing the project.
 
 After the JSON block, write your conversational reply to the user. Never include the delimiters or raw JSON in the conversational part.
@@ -191,13 +245,14 @@ export function parseRefinementTranscript(transcript: string, fallbackPrompt: st
     readyToGenerate && parsedResult?.canonicalPrompt?.trim()
       ? parsedResult.canonicalPrompt.trim()
       : null;
+  const nextPrompts = parsedResult ? normalizeNextPrompts(parsedResult) : [];
 
   return {
     assistantMessage: visibleText || "Tell me a bit more about the model you want to print.",
     readyToGenerate,
     latestPrompt,
     canonicalPrompt,
-    tips: parsedResult?.tips ?? [],
+    nextPrompts,
     title: parsedResult?.title?.trim() || buildSessionTitle(latestPrompt),
   };
 }
