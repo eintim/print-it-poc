@@ -42,13 +42,17 @@ function meshyPreviewGeometryBody() {
   if (modelType === "lowpoly") {
     return { model_type: "lowpoly" };
   }
-  const shouldRemesh = process.env.MESHY_PREVIEW_SHOULD_REMESH !== "false";
-  const out = { should_remesh: shouldRemesh };
+  const remeshEnv = process.env.MESHY_PREVIEW_SHOULD_REMESH?.trim().toLowerCase();
+  const shouldRemesh = remeshEnv === "true";
+  const out = {
+    model_type: "standard",
+    should_remesh: shouldRemesh,
+  };
   if (shouldRemesh) {
     out.topology = process.env.MESHY_PREVIEW_TOPOLOGY === "quad" ? "quad" : "triangle";
     const raw = process.env.MESHY_PREVIEW_TARGET_POLYCOUNT;
-    const parsed = raw !== undefined && raw !== "" ? Number(raw) : 25_000;
-    const n = Number.isFinite(parsed) ? Math.round(parsed) : 25_000;
+    const parsed = raw !== undefined && raw !== "" ? Number(raw) : 120_000;
+    const n = Number.isFinite(parsed) ? Math.round(parsed) : 120_000;
     out.target_polycount = Math.min(300_000, Math.max(100, n));
   }
   return out;

@@ -44,9 +44,9 @@ export function getMeshyUseMock() {
 }
 
 /**
- * Extra Meshy preview fields to control mesh density (smaller files, faster downloads).
- * @see https://docs.meshy.ai/en/api/text-to-3d — `should_remesh: false` returns highest-precision
- * geometry and ignores `topology` / `target_polycount`.
+ * Meshy preview geometry: defaults to high-detail `standard` mesh with remesh off (full-precision
+ * output per Meshy docs). Set `MESHY_PREVIEW_SHOULD_REMESH=true` to cap polycount for smaller files.
+ * @see https://docs.meshy.ai/en/api/text-to-3d
  */
 export function getMeshyPreviewGeometryOptions(): Record<string, string | number | boolean> {
   const modelType = (process.env.MESHY_PREVIEW_MODEL_TYPE ?? "").trim().toLowerCase();
@@ -54,13 +54,18 @@ export function getMeshyPreviewGeometryOptions(): Record<string, string | number
     return { model_type: "lowpoly" };
   }
 
-  const shouldRemesh = process.env.MESHY_PREVIEW_SHOULD_REMESH !== "false";
-  const out: Record<string, string | number | boolean> = { should_remesh: shouldRemesh };
+  const remeshEnv = process.env.MESHY_PREVIEW_SHOULD_REMESH?.trim().toLowerCase();
+  const shouldRemesh = remeshEnv === "true";
+
+  const out: Record<string, string | number | boolean> = {
+    model_type: "standard",
+    should_remesh: shouldRemesh,
+  };
   if (shouldRemesh) {
     out.topology = process.env.MESHY_PREVIEW_TOPOLOGY === "quad" ? "quad" : "triangle";
     const raw = process.env.MESHY_PREVIEW_TARGET_POLYCOUNT;
-    const parsed = raw !== undefined && raw !== "" ? Number(raw) : 25_000;
-    const n = Number.isFinite(parsed) ? Math.round(parsed) : 25_000;
+    const parsed = raw !== undefined && raw !== "" ? Number(raw) : 120_000;
+    const n = Number.isFinite(parsed) ? Math.round(parsed) : 120_000;
     out.target_polycount = Math.min(300_000, Math.max(100, n));
   }
   return out;
