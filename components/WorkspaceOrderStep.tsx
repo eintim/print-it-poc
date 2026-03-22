@@ -107,6 +107,16 @@ export default function WorkspaceOrderStep({
                 </dd>
               </div>
             </dl>
+            {stlDownloadUrl ? (
+              <a
+                href={stlDownloadUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-5 inline-flex w-full items-center justify-center rounded-xl border border-[var(--line)] px-5 py-3 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--cream)] sm:w-auto"
+              >
+                Download STL
+              </a>
+            ) : null}
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <button
                 type="button"
@@ -242,6 +252,18 @@ export default function WorkspaceOrderStep({
                 </div>
               ) : null}
             </dl>
+            {stlDownloadUrl ? (
+              <div className="mt-4 border-t border-[rgba(28,24,21,0.06)] pt-4">
+                <a
+                  href={stlDownloadUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex w-full items-center justify-center rounded-full border border-[var(--line)] px-4 py-2.5 text-xs font-semibold text-[var(--foreground)] transition hover:bg-[var(--cream)]"
+                >
+                  Download STL
+                </a>
+              </div>
+            ) : null}
           </div>
 
           <div className="rounded-2xl border border-[rgba(28,24,21,0.07)] bg-[var(--paper)] p-5 shadow-[var(--shadow-sm)]">

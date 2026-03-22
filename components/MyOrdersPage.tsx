@@ -1,7 +1,7 @@
 "use client";
 
 import { api } from "@/convex/_generated/api";
-import type { Doc } from "@/convex/_generated/dataModel";
+import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { useConvexAuth, usePaginatedQuery } from "convex/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -13,6 +13,8 @@ type OrderRow = Doc<"printOrders"> & {
   sessionTitle: string;
   modelPrompt: string;
   thumbnailUrl: string | null;
+  generationJobId: Id<"generationJobs"> | null;
+  stlAvailable: boolean;
 };
 
 function orderStatusLabel(status: OrderRow["status"]) {
@@ -126,12 +128,24 @@ function OrderCard({ order }: { order: OrderRow }) {
           <span className="text-xs text-[var(--muted)] opacity-80">
             Requested {timeAgo(order._creationTime)}
           </span>
-          <Link
-            href={`/create?sessionId=${order.sessionId}`}
-            className="rounded-full border border-[var(--line)] px-4 py-2 text-xs font-bold uppercase tracking-widest text-[var(--foreground)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
-          >
-            Open in workspace
-          </Link>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {order.stlAvailable && order.generationJobId ? (
+              <a
+                href={`/api/models/${order.generationJobId}/asset/stl`}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-full border border-[var(--line)] px-4 py-2 text-xs font-bold uppercase tracking-widest text-[var(--foreground)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+              >
+                Download STL
+              </a>
+            ) : null}
+            <Link
+              href={`/create?sessionId=${order.sessionId}`}
+              className="rounded-full border border-[var(--line)] px-4 py-2 text-xs font-bold uppercase tracking-widest text-[var(--foreground)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+            >
+              Open in workspace
+            </Link>
+          </div>
         </div>
       </div>
     </article>

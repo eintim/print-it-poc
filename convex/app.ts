@@ -330,6 +330,8 @@ export const listMyPrintOrders = query({
           sessionTitle: session?.title ?? "Untitled",
           modelPrompt: model?.prompt ?? "",
           thumbnailUrl: model?.thumbnailUrl ?? null,
+          generationJobId: model?.generationJobId ?? null,
+          stlAvailable: !!model?.stlUrl,
         };
       }),
     );

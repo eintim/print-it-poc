@@ -1243,27 +1243,15 @@ export default function WorkspaceClient({
         {!isWorkspaceLoading && activeScreen === "model" ? (
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto xl:flex-row xl:overflow-hidden">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-[var(--shadow)]">
-              <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-                <div className="flex items-center gap-3">
-                  <h2 className="font-serif text-xl font-semibold text-[var(--foreground)]">
-                    3D Preview
-                  </h2>
-                  {isGeneratingPreview ? (
-                    <span className="rounded-full bg-[var(--panel)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
-                      {jobLabel(jobProgress?.status ?? "preview_pending")}
-                      {jobProgress ? ` · ${jobProgress.progress}%` : ""}
-                    </span>
-                  ) : null}
-                </div>
-                {previewDownloadUrl ? (
-                  <a
-                    href={previewDownloadUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="rounded-full border border-[var(--line)] px-3 py-1 text-xs font-semibold text-[var(--foreground)] transition hover:bg-[var(--cream)]"
-                  >
-                    Download STL
-                  </a>
+              <div className="flex flex-wrap items-center gap-3 px-5 py-4">
+                <h2 className="font-serif text-xl font-semibold text-[var(--foreground)]">
+                  3D Preview
+                </h2>
+                {isGeneratingPreview ? (
+                  <span className="rounded-full bg-[var(--panel)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
+                    {jobLabel(jobProgress?.status ?? "preview_pending")}
+                    {jobProgress ? ` · ${jobProgress.progress}%` : ""}
+                  </span>
                 ) : null}
               </div>
 
