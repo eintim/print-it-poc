@@ -111,6 +111,45 @@ function HandArrow({ className, flip }: { className?: string; flip?: boolean }) 
   );
 }
 
+/** Prompt → 3D: compact arrow; bob animation in globals.css */
+function ShowcasePromptToModelArrow({ accent, index }: { accent: string; index: number }) {
+  return (
+    <div className="my-1 flex justify-center">
+      <div
+        className="showcase-flow-arrow flex flex-col items-center"
+        style={
+          {
+            color: accent,
+            "--showcase-flow-delay": `${index * 0.14}s`,
+          } as React.CSSProperties
+        }
+        aria-hidden
+      >
+        <svg
+          className="showcase-flow-arrow-glyph h-8 w-[1.4rem]"
+          viewBox="0 0 32 52"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M16 3 C14.5 22, 17.5 32, 16 38"
+            stroke="currentColor"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+          />
+          <path
+            d="M7 30 L16 44 L25 30"
+            stroke="currentColor"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 function ScribbleUnderline({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 200 12" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
@@ -185,7 +224,7 @@ function ShowcaseCard({
   return (
     <div
       ref={ref}
-      className={`showcase-card group ${visible ? "showcase-card--visible" : ""}`}
+      className={`showcase-card ${visible ? "showcase-card--visible" : ""}`}
       style={{
         "--card-rotation": item.rotation,
         "--card-delay": `${index * 0.09}s`,
@@ -223,13 +262,12 @@ function ShowcaseCard({
         )}
       </div>
 
-      {/* Arrow: prompt/sketch → 3D (points down) */}
-      <div className="my-1 flex items-center justify-center" style={{ color: item.accent }}>
-        <HandArrow className="h-16 w-5 rotate-90 opacity-50" />
-      </div>
+      {/* Arrow: prompt/sketch → 3D */}
+      <ShowcasePromptToModelArrow accent={item.accent} index={index} />
 
-      {/* Model preview */}
-      <div className="relative mt-2 aspect-[4/3] overflow-hidden rounded-xl border-2 border-dashed transition-colors duration-300"
+      {/* Model preview — hint only on this frame, tucked in a corner so it does not cover the mesh */}
+      <div
+        className="group/viewer relative mt-2 aspect-[4/3] overflow-hidden rounded-xl border-2 border-dashed transition-colors duration-300"
         style={{ borderColor: `color-mix(in srgb, ${item.accent} 30%, transparent)` }}
       >
         {"glb" in item && item.glb ? (
@@ -252,12 +290,13 @@ function ShowcaseCard({
           <SketchPlaceholder seed={item.id} accent={item.accent} />
         )}
 
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-          <div className="rounded-full bg-white/90 px-4 py-2 text-xs font-bold shadow-lg backdrop-blur-sm"
-            style={{ color: item.accent }}
-          >
-            {"glb" in item && item.glb ? "Drag to rotate" : "Preview ↗"}
-          </div>
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-end bg-gradient-to-t from-[var(--paper)]/90 via-[var(--paper)]/25 to-transparent pb-2 pr-2.5 pt-12 opacity-0 transition-opacity duration-200 group-hover/viewer:opacity-100"
+          aria-hidden
+        >
+          <span className="whitespace-nowrap border border-[var(--line)]/55 bg-[var(--paper)]/95 px-2 py-1 font-mono text-[0.625rem] font-medium uppercase tracking-[0.18em] text-[var(--muted)] shadow-[0_1px_2px_rgba(28,24,21,0.06)]">
+            {"glb" in item && item.glb ? "3D — drag to turn" : "Preview"}
+          </span>
         </div>
       </div>
 

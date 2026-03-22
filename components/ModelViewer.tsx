@@ -8,6 +8,21 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 
+const LOADER_WHIMSY = [
+  "Building your dreams",
+  "Sketching your ideas",
+  "Turning pixels into something solid",
+  "Teaching triangles to behave",
+  "Extruding the impossible",
+  "Your idea, gaining depth",
+  "Summoning vertices (politely)",
+  "From flat to phwoar",
+  "Clay of the mind, bits of the GPU",
+  "Almost definitely not magic",
+  "Giving your sketch a spine",
+  "Waking up the mesh gremlins",
+] as const;
+
 function disposeMaterial(material: THREE.Material) {
   const textureKeys = [
     "map",
@@ -57,10 +72,30 @@ export default function ModelViewer({
     message: string;
   } | null>(null);
   const [isModelLoading, setIsModelLoading] = useState(false);
+  const [whimsyIndex, setWhimsyIndex] = useState(0);
 
   useEffect(() => {
     setIsModelLoading(Boolean(modelUrl));
   }, [modelUrl]);
+
+  const shouldShowLoader = isGenerating || isModelLoading;
+
+  useEffect(() => {
+    if (!isGenerating) {
+      return;
+    }
+    setWhimsyIndex(Math.floor(Math.random() * LOADER_WHIMSY.length));
+  }, [isGenerating]);
+
+  useEffect(() => {
+    if (!isGenerating || !shouldShowLoader) {
+      return;
+    }
+    const id = window.setInterval(() => {
+      setWhimsyIndex((i) => (i + 1) % LOADER_WHIMSY.length);
+    }, 3600);
+    return () => window.clearInterval(id);
+  }, [isGenerating, shouldShowLoader]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -162,7 +197,9 @@ export default function ModelViewer({
 
         scene.add(floor);
 
-        const maxDim = Math.max(size.x, size.y, size.z, 1);
+        // Use real bounds only — `Math.max(..., 1)` made tiny GLBs (common exports) sit
+        // at a camera distance meant for ~1m meshes, so they looked like specks.
+        const maxDim = Math.max(placedSize.x, placedSize.y, placedSize.z, 1e-5);
         const placedCenter = placedBox.getCenter(new THREE.Vector3());
         // Orbit around the placed model's true center (not the base). The old target
         // (0, size.y * 0.15, 0) sat near the floor while geometry extends upward, which
@@ -173,9 +210,14 @@ export default function ModelViewer({
           maxDim * 1.2,
           maxDim * 1.8,
         );
-        const camOffset = prevCam.clone().sub(prevTarget);
+        let camOffset = prevCam.clone().sub(prevTarget);
+        if (layout === "embed") {
+          camOffset.multiplyScalar(1.12);
+        }
         controls.target.copy(placedCenter);
         camera.position.copy(placedCenter).add(camOffset);
+        controls.minDistance = Math.max(1e-4, maxDim * 0.25);
+        controls.maxDistance = Math.max(1.5, maxDim * 12);
         controls.update();
 
         if (layout === "checkout") {
@@ -248,8 +290,6 @@ export default function ModelViewer({
     };
   }, [layout, modelUrl, onPrintMetricsChange]);
 
-  const shouldShowLoader = isGenerating || isModelLoading;
-
   if (!modelUrl && !shouldShowLoader) {
     if (layout === "embed") {
       return null;
@@ -280,27 +320,53 @@ export default function ModelViewer({
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(253,125,104,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(71,102,82,0.12),transparent_32%),linear-gradient(180deg,#fffdf9,#f6ede3)]" />
       ) : null}
       {shouldShowLoader ? (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-[var(--cream)]/90 backdrop-blur-sm">
-          <div className="relative flex h-24 w-24 items-center justify-center">
-            <div className="absolute h-24 w-24 rounded-full border border-[var(--accent-soft)]/20" />
-            <div className="absolute h-24 w-24 animate-ping rounded-full border border-[var(--accent-soft)]/35" />
-            <div className="h-16 w-16 animate-spin rounded-full border-4 border-[var(--accent)]/15 border-t-[var(--accent)] shadow-[0_0_32px_rgba(165,60,44,0.18)]" />
-            <div className="absolute h-4 w-4 rounded-full bg-[var(--accent-soft)] shadow-[0_0_24px_rgba(253,125,104,0.7)]" />
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center gap-6 bg-[var(--cream)]/92 px-6 backdrop-blur-md"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <div
+            className="relative flex h-[5.75rem] w-[5.75rem] items-center justify-center"
+            aria-hidden
+          >
+            <div className="model-viewer-loader-glow pointer-events-none absolute inset-[-18%] rounded-full bg-[radial-gradient(circle,rgba(194,65,12,0.14)_0%,rgba(22,101,52,0.06)_45%,transparent_68%)]" />
+            <div className="pointer-events-none absolute inset-0 rounded-full border border-[var(--line)]/50 bg-[var(--paper)]/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]" />
+            <div
+              className="model-viewer-loader-orbit pointer-events-none absolute inset-[3px] rounded-full border-2 border-transparent border-t-[color-mix(in_srgb,var(--accent)_88%,transparent)] border-r-[color-mix(in_srgb,var(--accent-soft)_45%,transparent)]"
+              style={{ animationDuration: "2.6s" }}
+            />
+            <div
+              className="model-viewer-loader-orbit-reverse pointer-events-none absolute inset-[14px] rounded-full border-2 border-transparent border-b-[color-mix(in_srgb,var(--sage)_75%,transparent)] border-l-[color-mix(in_srgb,var(--sage)_35%,transparent)]"
+              style={{ animationDuration: "1.95s" }}
+            />
+            <div className="model-viewer-loader-core pointer-events-none absolute inset-[26px] rounded-full bg-[radial-gradient(circle_at_35%_30%,rgba(255,255,255,0.95),rgba(250,243,235,0.5)_42%,rgba(194,65,12,0.12)_100%)] shadow-[0_4px_24px_rgba(194,65,12,0.15),inset_0_-2px_8px_rgba(28,24,21,0.04)]" />
+            <div className="pointer-events-none absolute inset-[34px] rounded-full border border-[var(--accent)]/20" />
           </div>
-          <div className="space-y-2 text-center">
-            <p className="text-sm font-semibold tracking-[0.22em] text-[var(--accent)] uppercase">
+          <div className="max-w-[15.5rem] space-y-2.5 text-center">
+            <p className="font-serif text-base font-semibold leading-snug text-[var(--foreground)]">
               {loadingLabel}
             </p>
-            <div className="flex items-center justify-center gap-2">
-              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-[var(--accent)] [animation-delay:-0.3s]" />
-              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-[var(--accent-soft)] [animation-delay:-0.15s]" />
-              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-[var(--sage)]" />
-            </div>
-            <p className="text-xs text-[var(--muted)]">
-              {progress !== null && progress !== undefined
-                ? `${Math.max(progress, 0)}% complete`
-                : "Preparing the viewer..."}
-            </p>
+            {isGenerating ? (
+              <>
+                <p
+                  key={whimsyIndex}
+                  className="model-viewer-whimsy-text mx-auto max-w-[15rem] text-[0.8125rem] font-normal leading-relaxed text-[var(--muted)]"
+                >
+                  {LOADER_WHIMSY[whimsyIndex]}
+                </p>
+                <p className="text-[0.6875rem] leading-snug tracking-wide text-[var(--muted)]">
+                  ~1 min · preview appears here
+                </p>
+              </>
+            ) : null}
+            {progress !== null && progress !== undefined ? (
+              <p className="rounded-full border border-[var(--line)]/60 bg-[var(--paper)]/50 px-2.5 py-0.5 text-[0.6875rem] font-semibold tabular-nums tracking-wide text-[var(--accent)]">
+                {Math.max(progress, 0)}%
+              </p>
+            ) : !isGenerating ? (
+              <p className="text-[0.6875rem] font-medium tracking-wide text-[var(--muted)]">Loading…</p>
+            ) : null}
           </div>
         </div>
       ) : null}

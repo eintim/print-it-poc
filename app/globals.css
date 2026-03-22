@@ -121,6 +121,77 @@ textarea {
   }
 }
 
+/* Model viewer: generation / GLB loading */
+
+@keyframes model-loader-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes model-loader-orbit-reverse {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes model-loader-core {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.75;
+  }
+
+  50% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+}
+
+@keyframes model-loader-glow {
+  0%, 100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.65;
+    transform: scale(1.15);
+  }
+}
+
+.model-viewer-loader-orbit {
+  animation: model-loader-orbit 2.8s linear infinite;
+}
+
+.model-viewer-loader-orbit-reverse {
+  animation: model-loader-orbit-reverse 2.1s linear infinite;
+}
+
+.model-viewer-loader-core {
+  animation: model-loader-core 2.4s ease-in-out infinite;
+}
+
+.model-viewer-loader-glow {
+  animation: model-loader-glow 3s ease-in-out infinite;
+}
+
+@keyframes model-whimsy-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.model-viewer-whimsy-text {
+  display: block;
+  animation: model-whimsy-in 0.45s ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -148,6 +219,28 @@ textarea {
 
 .animate-float {
   animation: float 5s ease-in-out infinite;
+}
+
+/* Showcase: prompt → 3D flow arrow (bob; respects reduced motion via global rule) */
+
+@keyframes showcase-flow-bob {
+  0%, 100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(5px);
+  }
+}
+
+.showcase-flow-arrow-glyph {
+  display: block;
+  animation: showcase-flow-bob 1.75s ease-in-out infinite;
+  animation-delay: var(--showcase-flow-delay, 0s);
+}
+
+.showcase-card:hover .showcase-flow-arrow-glyph {
+  animation-duration: 1.2s;
 }
 
 /* Home: Sketch → 3D hero diagram */
