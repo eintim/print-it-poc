@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import HomeHeroThreePreview from "@/components/HomeHeroThreePreview";
 
 /** Stable SVG gradient ids — useId() can mismatch SSR vs client under Next/Turbopack. */
@@ -206,82 +207,6 @@ function SketchToModelArrow({
   );
 }
 
-/** Napkin-style line art for the hero “sketch” panel (matches moon-jar copy). */
-function PromptSketchSvg({ compact }: { compact?: boolean }) {
-  return (
-    <svg
-      className={`w-full shrink-0 text-[#2a2421] ${compact ? "max-h-[5.5rem] sm:max-h-[6rem]" : "max-h-[9.5rem] sm:max-h-[11rem]"}`}
-      viewBox="0 0 240 200"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden
-    >
-      {/* Margin scribbles — stars */}
-      <g
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        opacity="0.85"
-      >
-        <path d="M 196 36 L 198 42 L 204 40 L 200 45 L 206 48 L 199 48 L 198 54 L 195 48 L 188 48 L 194 44 L 190 39 L 196 42 Z" />
-        <path d="M 214 68 L 215.5 72 L 219 71 L 216.5 75 L 220 77 L 215.5 77 L 214 81 L 212.5 77 L 208 77 L 211.5 74.5 L 209.5 71 L 213.5 72 Z" />
-        <path
-          d="M 178 58 l 3 0 M 179.5 55 l 0 6"
-          strokeWidth="2"
-          opacity="0.7"
-        />
-        <path
-          d="M 226 42 l 2.5 0 M 227.25 39.5 l 0 5"
-          strokeWidth="1.8"
-          opacity="0.55"
-        />
-      </g>
-      {/* Moon jar + lid */}
-      <g
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      >
-        {/* Lid */}
-        <ellipse cx="118" cy="58" rx="38" ry="10" fill="rgba(254,243,199,0.35)" />
-        <path d="M 80 58 Q 118 44 156 58" />
-        <line x1="82" y1="58" x2="154" y2="58" strokeWidth="2.2" opacity="0.5" />
-        {/* Knob */}
-        <ellipse cx="118" cy="48" rx="9" ry="5" fill="rgba(194,65,12,0.12)" />
-        <path d="M 109 48 Q 118 40 127 48" />
-        {/* Neck */}
-        <path d="M 88 68 Q 118 62 148 68" />
-        <path d="M 90 68 L 90 78 Q 118 84 146 78 L 146 68" />
-        {/* Body */}
-        <path
-          d="M 90 78 Q 72 118 78 158 Q 118 176 158 158 Q 164 118 146 78"
-          fill="rgba(255,253,245,0.5)"
-        />
-        <path d="M 90 78 Q 72 118 78 158 Q 118 176 158 158 Q 164 118 146 78" />
-        {/* Foot ring */}
-        <path d="M 86 154 Q 118 168 150 154" strokeWidth="2.4" opacity="0.65" />
-        {/* Shading hatch */}
-        <path
-          d="M 102 100 l 8 18 M 112 92 l 10 22 M 124 88 l 10 24 M 136 92 l 8 20"
-          strokeWidth="1.4"
-          opacity="0.22"
-        />
-      </g>
-      {/* Loose pencil underline under jar */}
-      <path
-        d="M 52 178 Q 118 188 188 172"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        opacity="0.2"
-      />
-    </svg>
-  );
-}
-
 function SketchDoodleDecoration({ compact }: { compact?: boolean }) {
   return (
     <svg
@@ -384,13 +309,28 @@ export default function HomePromptToModel({
                   className="select-none font-mono text-[10px] font-bold leading-none text-[var(--muted)]"
                   aria-hidden
                 >
-                  napkin.png
+                  robot-sketch.png
                 </span>
               </div>
               <div
-                className={`relative mt-3 flex items-center justify-center rounded-md border-2 border-dashed border-[#2a2421]/20 bg-white/60 ${compact ? "py-1.5 px-2" : "py-2.5 px-3 sm:py-3 sm:px-4"}`}
+                className={`relative mt-3 w-full overflow-hidden rounded-md border-2 border-dashed border-[#2a2421]/20 bg-white/60 ${
+                  compact
+                    ? "h-[5.25rem] sm:h-[5.75rem]"
+                    : "h-[10rem] sm:h-[11.5rem]"
+                }`}
               >
-                <PromptSketchSvg compact={compact} />
+                <Image
+                  src="/showcase/sketch-robot.png"
+                  alt="Hand-drawn robot sketch"
+                  fill
+                  className="object-contain object-center p-1.5 sm:p-2"
+                  sizes={
+                    compact
+                      ? "(max-width: 1024px) 85vw, 280px"
+                      : "(max-width: 768px) 90vw, 400px"
+                  }
+                  priority
+                />
               </div>
               <p
                 className={`relative font-mono leading-snug text-[#2a2421] ${
@@ -400,8 +340,8 @@ export default function HomePromptToModel({
                 }`}
               >
                 {compact
-                  ? "Moon jar, snug lid, tiny stars in the margin…"
-                  : "Moon jar · snug lid · tiny stars scribbled in the margin…"}
+                  ? "Chunky robot, antenna, big feet — rough lines OK…"
+                  : "Chunky robot · antenna · big feet — rough lines are fine…"}
                 <span className="home-prompt-caret" aria-hidden />
               </p>
               {!compact && (

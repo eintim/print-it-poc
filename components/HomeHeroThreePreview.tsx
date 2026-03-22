@@ -6,8 +6,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 
-/** Written by `npm run showcase:fetch-meshy` — matches the moon-jar hero sketch. */
-const HOME_HERO_GLB_URL = "/showcase/home-hero_opti.glb";
+/** Written by `npm run showcase:fetch-meshy` — matches the hero sketch PNG. */
+const HOME_HERO_GLB_URL = "/showcase/sketch-robot_opti.glb";
 
 type HomeHeroThreePreviewProps = {
   className?: string;
@@ -146,10 +146,25 @@ export default function HomeHeroThreePreview({
       const maxDim = Math.max(placedSize.x, placedSize.y, placedSize.z, 0.01);
 
       controls.target.copy(placedCenter);
-      const offset = new THREE.Vector3(maxDim * 1.25, maxDim * 0.88, maxDim * 1.42);
-      camera.position.copy(placedCenter).add(offset);
-      controls.minDistance = Math.max(0.8, maxDim * 1.05);
-      controls.maxDistance = Math.max(4.5, maxDim * 5.5);
+
+      /** Fit the model’s screen projection; GLB scale varies, so use FOV math not fixed multiples of maxDim. */
+      const vFovRad = THREE.MathUtils.degToRad(camera.fov);
+      const aspect = Math.max(camera.aspect, 0.01);
+      const hFovRad = 2 * Math.atan(Math.tan(vFovRad / 2) * aspect);
+      const halfH = placedSize.y / 2;
+      const halfW = placedSize.x / 2;
+      const distForHeight = halfH / Math.tan(vFovRad / 2);
+      const distForWidth = halfW / Math.tan(hFovRad / 2);
+      /** Slightly tighter than full-frame so the hero preview feels substantial (~76% of the shorter view axis). */
+      const viewFill = 0.76;
+      const distance =
+        Math.max(distForHeight, distForWidth, maxDim * 0.25) / viewFill;
+
+      const dir = new THREE.Vector3(0.48, 0.34, 1).normalize();
+      camera.position.copy(placedCenter).addScaledVector(dir, distance);
+
+      controls.minDistance = Math.max(maxDim * 0.08, distance * 0.28);
+      controls.maxDistance = Math.max(distance * 3.5, maxDim * 6);
       controls.update();
     }
 
