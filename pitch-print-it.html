@@ -550,41 +550,76 @@
       }
 
       .solution-layout {
-        display: grid;
-        grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+        display: flex;
+        flex-direction: row;
         gap: 14px;
         margin-top: 4px;
-        align-items: start;
+        align-items: center;
+      }
+
+      .solution-layout > div:first-child {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
       }
 
       .solution-strip {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 8px;
+        display: flex;
+        align-items: center;
+        gap: 0;
+        width: 100%;
       }
 
-      .solution-step {
-        border: 1px dashed var(--line-strong);
-        border-radius: 11px;
-        background: color-mix(in srgb, var(--paper) 90%, var(--cream) 10%);
-        padding: 9px 8px;
+      .solution-flow-step {
+        flex: 1;
+        text-align: center;
+        padding: 10px 8px;
+        border-radius: 12px;
+        background: var(--step-bg);
+        border: 1.5px solid var(--step-border);
+        position: relative;
       }
 
       .solution-step-num {
         display: block;
-        font-size: 10px;
+        font-family: "Fraunces", serif;
+        font-size: 26px;
         font-weight: 700;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
-        color: var(--muted);
+        line-height: 1;
+        color: var(--step-color);
         margin-bottom: 4px;
       }
 
       .solution-step-label {
         margin: 0;
-        font-size: 14px;
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.2;
+        color: var(--foreground);
+      }
+
+      .solution-step-sub {
+        margin: 3px 0 0;
+        font-size: 9px;
         font-weight: 600;
-        line-height: 1.22;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .solution-flow-arrow {
+        flex: 0 0 auto;
+        width: 38px;
+        color: var(--line-strong);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .solution-arrow-svg {
+        width: 34px;
+        height: 13px;
       }
 
       .solution-note {
@@ -592,6 +627,7 @@
         color: var(--muted);
         font-size: 14px;
         line-height: 1.35;
+        text-align: center;
       }
 
       .solution-example {
@@ -1009,7 +1045,7 @@
         grid-template-columns: minmax(0, 1fr) 52px minmax(0, 1fr);
         gap: 0;
         flex: 1;
-        align-items: start;
+        align-items: stretch;
       }
 
       .why-col-label {
@@ -1093,24 +1129,34 @@
       }
 
       .why-divider {
+        position: relative;
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: 32px 0 0;
-        gap: 4px;
+        justify-content: center;
+        padding: 0;
       }
 
-      .why-divider-line {
+      .why-divider::before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 0;
+        bottom: 0;
         width: 1px;
-        height: 40px;
-        background: linear-gradient(180deg, transparent, var(--line-strong));
-      }
-
-      .why-divider-line.bottom {
-        background: linear-gradient(180deg, var(--line-strong), transparent);
+        transform: translateX(-50%);
+        background: linear-gradient(
+          180deg,
+          transparent 0%,
+          var(--line-strong) 6%,
+          var(--line-strong) 94%,
+          transparent 100%
+        );
       }
 
       .why-divider-arrow {
+        position: relative;
+        z-index: 1;
         width: 32px;
         height: 32px;
         border-radius: 999px;
@@ -1256,38 +1302,52 @@
             <div class="solution-layout">
               <div>
                 <div class="solution-strip">
-                  <article class="solution-step">
+                  <article class="solution-flow-step" style="--step-color: var(--accent); --step-bg: rgba(194,65,12,0.07); --step-border: rgba(194,65,12,0.22);">
                     <span class="solution-step-num">01</span>
-                    <p class="solution-step-label">Describe or sketch</p>
+                    <p class="solution-step-label">Describe it</p>
+                    <p class="solution-step-sub">or upload a sketch</p>
                   </article>
-                  <article class="solution-step">
+                  <div class="solution-flow-arrow" aria-hidden="true">
+                    <svg class="solution-arrow-svg" viewBox="0 0 80 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M5 18 C15 8, 30 6, 50 12 C60 15, 68 14, 72 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      <path d="M66 8 L73 13 L65 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </div>
+                  <article class="solution-flow-step" style="--step-color: var(--sage); --step-bg: rgba(22,101,52,0.07); --step-border: rgba(22,101,52,0.22);">
                     <span class="solution-step-num">02</span>
-                    <p class="solution-step-label">AI refines shape</p>
+                    <p class="solution-step-label">AI refines it</p>
+                    <p class="solution-step-sub">back-and-forth chat</p>
                   </article>
-                  <article class="solution-step">
+                  <div class="solution-flow-arrow" aria-hidden="true">
+                    <svg class="solution-arrow-svg" viewBox="0 0 80 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M5 18 C15 8, 30 6, 50 12 C60 15, 68 14, 72 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      <path d="M66 8 L73 13 L65 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </div>
+                  <article class="solution-flow-step" style="--step-color: var(--accent); --step-bg: rgba(194,65,12,0.07); --step-border: rgba(194,65,12,0.22);">
                     <span class="solution-step-num">03</span>
                     <p class="solution-step-label">Preview in 3D</p>
+                    <p class="solution-step-sub">look from every angle</p>
                   </article>
-                  <article class="solution-step">
+                  <div class="solution-flow-arrow" aria-hidden="true">
+                    <svg class="solution-arrow-svg" viewBox="0 0 80 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M5 18 C15 8, 30 6, 50 12 C60 15, 68 14, 72 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      <path d="M66 8 L73 13 L65 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </div>
+                  <article class="solution-flow-step" style="--step-color: var(--sage); --step-bg: rgba(22,101,52,0.07); --step-border: rgba(22,101,52,0.22);">
                     <span class="solution-step-num">04</span>
-                    <p class="solution-step-label">Request print</p>
+                    <p class="solution-step-label">Order a print</p>
+                    <p class="solution-step-sub">real thing, shipped</p>
                   </article>
                 </div>
                 <p class="solution-note">No CAD tools, no file-format ping-pong, no fragmented handoff between apps.</p>
-                <article class="solution-example">
-                  <img src="public/showcase/sketch-robot.png" alt="Showcase example: sketch robot transformed into a printable model" />
-                  <div>
-                    <p class="solution-example-meta">Showcase example</p>
-                    <p class="solution-example-title">Sketch Robot</p>
-                    <p class="solution-example-copy">Started as a napkin doodle, refined into a production-ready 3D model.</p>
-                  </div>
-                </article>
               </div>
               <div class="solution-metrics">
                 <article class="solution-metric">
                   <p class="solution-metric-label">Time to first prototype</p>
-                  <p class="solution-metric-value">~15 min</p>
-                  <p class="solution-metric-detail">instead of 3-7 days</p>
+                  <p class="solution-metric-value">~5 min</p>
+                  <p class="solution-metric-detail">to first prototype ordered</p>
                 </article>
                 <article class="solution-metric">
                   <p class="solution-metric-label">User fit</p>
@@ -1316,7 +1376,7 @@
                 <ul class="business-list">
                   <li><strong>Per object sale:</strong> €15-€150</li>
                   <li><strong>Premium add-ons:</strong> +€5-€20</li>
-                  <li><strong>B2B bulk orders:</strong> later expansion</li>
+                  <li><strong>Marketplace to share ideas:</strong> later expansion</li>
                 </ul>
               </article>
               <article class="business-card">
@@ -1324,7 +1384,7 @@
                 <ul class="business-list">
                   <li><strong>Printing:</strong> €2-€10</li>
                   <li><strong>Shipping:</strong> €3-€8</li>
-                  <li><strong>AI:</strong> approx. €0</li>
+                  <li><strong>AI:</strong> approx. €0.50</li>
                 </ul>
               </article>
             </div>
@@ -1350,18 +1410,20 @@
               <div class="gtm-pillar">
                 <span class="gtm-num">01</span>
                 <h3 class="gtm-title">Initial Users</h3>
-                <p class="gtm-copy">DM 50 people on Reddit &amp; makerspaces. Convert first 10 with discounted first orders.</p>
-                <span class="gtm-stat">50 DMs → 10 paying</span>
+                <div class="gtm-checks">
+                  <span class="gtm-check"><span class="gtm-check-icon">✓</span>Online communities — Reddit, makerspaces, hobby groups</span>
+                  <span class="gtm-check"><span class="gtm-check-icon">✓</span>Facebook marketing — not cold DMs</span>
+                  <span class="gtm-check"><span class="gtm-check-icon">✓</span>Clear offers &amp; intro pricing → first 10 paying</span>
+                </div>
               </div>
 
               <div class="gtm-pillar">
                 <span class="gtm-num">02</span>
                 <h3 class="gtm-title">Distribution</h3>
-                <p class="gtm-copy">TikTok / Reels loop: idea → model → real object. 3D print community partnerships.</p>
-                <div class="gtm-tags">
-                  <span class="gtm-tag">TikTok</span>
-                  <span class="gtm-tag">Reels</span>
-                  <span class="gtm-tag">Makerspaces</span>
+                <div class="gtm-checks">
+                  <span class="gtm-check"><span class="gtm-check-icon">✓</span>TikTok / Reels — idea → model → real object</span>
+                  <span class="gtm-check"><span class="gtm-check-icon">✓</span>3D print &amp; makerspace community partnerships</span>
+                  <span class="gtm-check"><span class="gtm-check-icon">✓</span>Shareable before/after moments</span>
                 </div>
               </div>
 
@@ -1369,7 +1431,7 @@
                 <span class="gtm-num">03</span>
                 <h3 class="gtm-title">Why It Works</h3>
                 <div class="gtm-checks">
-                  <span class="gtm-check"><span class="gtm-check-icon">✓</span>Faster than Fiverr / Etsy</span>
+                  <span class="gtm-check"><span class="gtm-check-icon">✓</span>More personal than Fiverr / Etsy</span>
                   <span class="gtm-check"><span class="gtm-check-icon">✓</span>No design skills needed</span>
                   <span class="gtm-check"><span class="gtm-check-icon">✓</span>Highly shareable results</span>
                 </div>
@@ -1426,11 +1488,9 @@
                 </div>
               </div>
 
-              <!-- CENTER: Arrow -->
+              <!-- CENTER: Full-height rule + arrow -->
               <div class="why-divider">
-                <div class="why-divider-line"></div>
                 <div class="why-divider-arrow">→</div>
-                <div class="why-divider-line bottom"></div>
               </div>
 
               <!-- RIGHT: Our answer -->
