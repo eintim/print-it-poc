@@ -165,6 +165,7 @@ export default function WorkspaceClient({
   const [chatInput, setChatInput] = useState("");
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
   const [streamingResponse, setStreamingResponse] = useState("");
+  const [completedStreamText, setCompletedStreamText] = useState<string | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [isRefining, setIsRefining] = useState(false);
   const [pollJobId, setPollJobId] = useState<Id<"generationJobs"> | null>(null);
@@ -202,6 +203,7 @@ export default function WorkspaceClient({
     setChatInput("");
     setPendingUserMessage(null);
     setStreamingResponse("");
+    setCompletedStreamText(null);
     setRequestError(null);
     setPollJobId(null);
     setPollError(null);
@@ -374,19 +376,51 @@ export default function WorkspaceClient({
     });
   }, [chatMessages, streamingResponse]);
 
-  useEffect(() => {
+  // Determine if the pending optimistic bubble should still be shown.
+  // Once Convex's real-time subscription delivers the saved message we can
+  // hide the duplicate immediately (same render frame) instead of waiting
+  // for a useEffect, which caused a one-frame flash / duplicate.
+  const pendingAlreadyInChat = useMemo(() => {
     if (!pendingUserMessage || chatMessages.length === 0) {
-      return;
+      return false;
     }
-
     const lastUserMessage = [...chatMessages]
       .reverse()
       .find((message) => message.role === "user");
+    return lastUserMessage?.content === pendingUserMessage;
+  }, [chatMessages, pendingUserMessage]);
 
-    if (lastUserMessage?.content === pendingUserMessage) {
+  const showPendingUserMessage = !!pendingUserMessage && !pendingAlreadyInChat;
+
+  // Still clear the state variable once it's been persisted so downstream
+  // logic (e.g. hasMessages) stays correct after the streaming turn ends.
+  useEffect(() => {
+    if (pendingAlreadyInChat) {
       setPendingUserMessage(null);
     }
-  }, [chatMessages, pendingUserMessage]);
+  }, [pendingAlreadyInChat]);
+
+  // Same pattern for the assistant response: after the stream completes we
+  // keep showing completedStreamText until the DB delivers the persisted
+  // assistant message, preventing the blink/flash between stream end and
+  // Convex subscription update.
+  const completedStreamAlreadyInChat = useMemo(() => {
+    if (!completedStreamText || chatMessages.length === 0) {
+      return false;
+    }
+    const lastAssistantMessage = [...chatMessages]
+      .reverse()
+      .find((message) => message.role === "assistant");
+    return lastAssistantMessage?.content === completedStreamText;
+  }, [chatMessages, completedStreamText]);
+
+  const showCompletedStream = !!completedStreamText && !completedStreamAlreadyInChat;
+
+  useEffect(() => {
+    if (completedStreamAlreadyInChat) {
+      setCompletedStreamText(null);
+    }
+  }, [completedStreamAlreadyInChat]);
 
   const handleImageToModel = useCallback(async () => {
     if (!attachmentFile) {
@@ -507,6 +541,7 @@ export default function WorkspaceClient({
 
         if (event.type === "final") {
           setPendingUserMessage(null);
+          setCompletedStreamText(event.assistantMessage);
           setStreamingResponse("");
         }
       });
@@ -607,7 +642,7 @@ export default function WorkspaceClient({
     [submitRefineMessage],
   );
 
-  const hasMessages = chatMessages.length > 0 || !!streamingResponse || !!pendingUserMessage;
+  const hasMessages = chatMessages.length > 0 || !!streamingResponse || showPendingUserMessage || showCompletedStream;
   /** Hide chips while /api/refine is streaming so the list updates only when the turn completes. */
   const showNextPromptSuggestions =
     hasMessages && !isRefining && !streamingResponse;
@@ -1039,7 +1074,7 @@ export default function WorkspaceClient({
                   </div>
                 ))}
 
-                {pendingUserMessage ? (
+                {showPendingUserMessage ? (
                   <div className="flex justify-end">
                     <div className="max-w-[80%] rounded-2xl bg-[rgba(253,125,104,0.12)] px-4 py-3 text-[var(--foreground)]">
                       <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
@@ -1062,14 +1097,14 @@ export default function WorkspaceClient({
                   </div>
                 ) : null}
 
-                {streamingResponse ? (
+                {(streamingResponse || showCompletedStream) ? (
                   <div className="flex justify-start">
                     <div className="max-w-[80%] rounded-2xl bg-[var(--panel)] px-4 py-3 text-[var(--foreground)]">
                       <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
                         Assistant
                       </p>
                       <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                        {streamingResponse}
+                        {streamingResponse || completedStreamText}
                       </p>
                     </div>
                   </div>
