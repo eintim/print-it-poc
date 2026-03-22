@@ -44,9 +44,9 @@ export default function HomeHeroThreePreview({
     const height = () => Math.max(mount.clientHeight, 1);
 
     const scene = new THREE.Scene();
-    scene.background = null;
+    scene.background = new THREE.Color("#f8efe4");
 
-    const camera = new THREE.PerspectiveCamera(48, width() / height(), 0.1, 100);
+    const camera = new THREE.PerspectiveCamera(45, width() / height(), 0.1, 1000);
     camera.position.set(0.12, 0.28, 3.05);
 
     const renderer = new THREE.WebGLRenderer({
@@ -54,28 +54,45 @@ export default function HomeHeroThreePreview({
       alpha: true,
       powerPreference: "high-performance",
     });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(width(), height());
-    renderer.setClearColor(0x000000, 0);
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.18;
     mount.appendChild(renderer.domElement);
 
-    const ambient = new THREE.AmbientLight(0xd8f0e4, 0.58);
-    scene.add(ambient);
+    const ambient = new THREE.AmbientLight("#fff7f1", 1.9);
+    const keyLight = new THREE.DirectionalLight("#ffffff", 2.8);
+    keyLight.position.set(6, 8, 4);
+    const fillLight = new THREE.DirectionalLight("#ffd3c5", 1.6);
+    fillLight.position.set(-4, 3, -6);
+    const rimLight = new THREE.DirectionalLight("#d4ead7", 1.2);
+    rimLight.position.set(0, 5, -8);
+    scene.add(ambient, keyLight, fillLight, rimLight);
 
-    const key = new THREE.DirectionalLight(0xffffff, 1.35);
-    key.position.set(4, 5.5, 3);
-    scene.add(key);
+    const floorMaterial = new THREE.MeshStandardMaterial({
+      color: "#eadbc9",
+      roughness: 0.92,
+      metalness: 0.02,
+      depthWrite: true,
+    });
+    let floor: THREE.Mesh | null = null;
 
-    const fill = new THREE.DirectionalLight(0xa7f3d0, 0.55);
-    fill.position.set(-3.5, 0.5, 2);
-    scene.add(fill);
-
-    const copper = new THREE.PointLight(0xfdba74, 1.45, 14, 2);
-    copper.position.set(-1.8, -2.2, 3.5);
-    scene.add(copper);
+    function attachFloorUnder(root: THREE.Object3D) {
+      if (floor) {
+        scene.remove(floor);
+        floor.geometry.dispose();
+        floor = null;
+      }
+      const placedBox = new THREE.Box3().setFromObject(root);
+      const placedSize = placedBox.getSize(new THREE.Vector3());
+      const groundGap = Math.max(placedSize.y, 1) * 0.004;
+      const disc = new THREE.Mesh(new THREE.CircleGeometry(1, 64), floorMaterial);
+      disc.rotation.x = -Math.PI / 2;
+      disc.position.y = placedBox.min.y - groundGap;
+      const footprintRadius =
+        0.55 * Math.hypot(placedSize.x, placedSize.z) + groundGap;
+      disc.scale.setScalar(Math.max(1.2, footprintRadius));
+      scene.add(disc);
+      floor = disc;
+    }
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -148,6 +165,7 @@ export default function HomeHeroThreePreview({
       const mesh = new THREE.Mesh(geo, mat);
       mesh.rotation.x = 0.35;
       scene.add(mesh);
+      attachFloorUnder(mesh);
       spinTarget = mesh;
       spinTorusStyle = true;
       camera.position.set(0.12, 0.28, 3.05);
@@ -172,6 +190,7 @@ export default function HomeHeroThreePreview({
         const root = gltf.scene;
         scene.add(root);
         applyFramedCamera(root);
+        attachFloorUnder(root);
         spinTarget = root;
         spinTorusStyle = false;
         raf = requestAnimationFrame(tick);
@@ -189,8 +208,19 @@ export default function HomeHeroThreePreview({
       cancelAnimationFrame(raf);
       ro.disconnect();
       controls.dispose();
+      if (floor) {
+        scene.remove(floor);
+        floor.geometry.dispose();
+        floor = null;
+      }
+      floorMaterial.dispose();
       for (const child of [...scene.children]) {
-        if (child === ambient || child === key || child === fill || child === copper) {
+        if (
+          child === ambient ||
+          child === keyLight ||
+          child === fillLight ||
+          child === rimLight
+        ) {
           continue;
         }
         scene.remove(child);

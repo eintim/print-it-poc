@@ -422,21 +422,17 @@ export default function HomePromptToModel({
           <SketchToModelArrow variant="vertical" gradId={bridgeGradV} compact={compact} />
           <SketchToModelArrow variant="horizontal" gradId={bridgeGradH} compact={compact} />
 
-          {/* WebGL hero: square preview — compact mode caps size for first viewport */}
+          {/* WebGL hero: same chrome as ModelViewer embed (cream panel + dashed accent) */}
           <div
-            className={`home-prompt-vault relative shrink-0 overflow-hidden bg-gradient-to-br from-[#1b4d2e] via-[#14532d] to-[#0c2e1c] shadow-[8px_8px_0_rgba(42,36,33,0.18)] ${
+            className={`home-prompt-vault relative shrink-0 overflow-hidden border-2 border-dashed bg-gradient-to-b from-[var(--cream)] to-[var(--panel)] transition-colors duration-300 ${
               compact
-                ? "mx-auto aspect-square rounded-lg h-[min(9rem,min(calc(100svh-18rem),calc(100dvh-18rem)))] w-[min(9rem,min(calc(100svh-18rem),calc(100dvh-18rem)))] sm:h-[min(10rem,min(calc(100svh-16.5rem),calc(100dvh-16.5rem)))] sm:w-[min(10rem,min(calc(100svh-16.5rem),calc(100dvh-16.5rem)))] lg:mx-0 lg:ml-auto lg:h-[min(12.5rem,min(calc(100svh-11.5rem),calc(100dvh-11.5rem)))] lg:w-[min(12.5rem,min(calc(100svh-11.5rem),calc(100dvh-11.5rem)))] xl:h-[min(13.5rem,min(calc(100svh-10.5rem),calc(100dvh-10.5rem)))] xl:w-[min(13.5rem,min(calc(100svh-10.5rem),calc(100dvh-10.5rem)))]"
-                : "aspect-square w-full max-w-[min(100%,520px)] min-w-0 rounded-2xl sm:max-w-[560px] sm:rounded-[1.35rem] lg:mx-0 lg:ml-auto lg:max-w-[min(100%,min(640px,52vw))] xl:max-w-[min(100%,min(720px,48vw))]"
+                ? "mx-auto aspect-square rounded-lg h-[min(9rem,min(calc(100svh-18rem),calc(100dvh-18rem)))] w-[min(9rem,min(calc(100svh-18rem),calc(100dvh-18rem)))] sm:h-[min(10rem,min(calc(100svh-16.5rem),calc(100dvh-16.5rem)))] sm:w-[min(10rem,min(calc(100svh-16.5rem),calc(100dvh-16.5rem)))] sm:rounded-xl lg:mx-0 lg:ml-auto lg:h-[min(12.5rem,min(calc(100svh-11.5rem),calc(100dvh-11.5rem)))] lg:w-[min(12.5rem,min(calc(100svh-11.5rem),calc(100dvh-11.5rem)))] xl:h-[min(13.5rem,min(calc(100svh-10.5rem),calc(100dvh-10.5rem)))] xl:w-[min(13.5rem,min(calc(100svh-10.5rem),calc(100dvh-10.5rem)))]"
+                : "aspect-square w-full max-w-[min(100%,520px)] min-w-0 rounded-xl sm:max-w-[560px] lg:mx-0 lg:ml-auto lg:max-w-[min(100%,min(640px,52vw))] xl:max-w-[min(100%,min(720px,48vw))]"
             }`}
+            style={{
+              borderColor: "color-mix(in srgb, var(--accent) 30%, transparent)",
+            }}
           >
-            <div
-              className="pointer-events-none absolute inset-0 opacity-40"
-              style={{
-                background:
-                  "radial-gradient(ellipse 80% 60% at 40% 30%, rgba(253, 230, 138, 0.22), transparent 55%), radial-gradient(circle at 85% 75%, rgba(251, 146, 60, 0.15), transparent 45%)",
-              }}
-            />
             <HomeHeroThreePreview className="absolute inset-0 h-full w-full" />
           </div>
         </div>
