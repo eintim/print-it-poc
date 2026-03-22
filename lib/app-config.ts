@@ -54,7 +54,7 @@ const PRINT_ESTIMATE = {
    * This uses ~2× that band to cover supports VAT loss, wash/cure consumables, and a small
    * shop allocation — still far below the old 0.85 (~$850/L), which overstated resin cost.
    */
-  resinRetailUsdPerMl: 0.1,
+  resinRetailUsdPerMl: 0.05,
 
   /** Triangles per mm³ of scaled bounding box above → resin-class detail. */
   resinDetailTriPerMm3: 0.01,
@@ -64,13 +64,13 @@ const PRINT_ESTIMATE = {
   /** Markup on variable (material) portion on top of tier base. */
   variableMarkup: 1.35,
   /** Log-scaled complexity add before markup (USD, pre-markup). */
-  complexityLogScale: 3.2,
-  complexityTriDivisor: 6000,
+  complexityLogScale: 3.0,
+  complexityTriDivisor: 5000,
   /**
    * AI meshes often have 500k–2M+ triangles; uncapped log complexity dominated quotes.
    * This limits the triangle surcharge before detail/markup (material is unchanged).
    */
-  complexityPreMarkupMaxUsd: 12,
+  complexityPreMarkupMaxUsd: 8,
 
   /** When mesh volume is missing or absurd, assume bbox is this “full” (5–25%). */
   bboxFallbackFillRatio: 0.16,
