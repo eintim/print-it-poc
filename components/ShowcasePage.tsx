@@ -340,7 +340,7 @@ export default function ShowcasePage() {
       {/* Hero — the workbench */}
       <section
         ref={heroRef}
-        className="relative overflow-hidden border-b-2 border-dashed border-[var(--line-strong)] px-4 pb-16 pt-12 sm:px-6 lg:px-8"
+        className="relative overflow-hidden border-b-2 border-dashed border-[var(--line-strong)] px-4 pb-8 pt-8 sm:px-6 lg:px-8"
       >
         {/* Background decorations */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -362,21 +362,18 @@ export default function ShowcasePage() {
             what people are making
           </p>
 
-          <h1 className="mt-6 font-serif text-5xl font-semibold leading-[1.1] text-[var(--foreground)] sm:text-6xl lg:text-7xl">
+          <h1 className="mt-3 font-serif text-3xl font-semibold leading-[1.15] text-[var(--foreground)] sm:text-4xl lg:text-5xl">
             From{" "}
             <span className="relative inline-block">
               <span className="relative z-10 italic" style={{ color: "var(--accent)" }}>
                 rough ideas
               </span>
-              <ScribbleUnderline className="absolute -bottom-2 left-0 right-0 z-0 h-3 w-full text-[var(--accent)] opacity-40" />
+              <ScribbleUnderline className="absolute -bottom-1.5 left-0 right-0 z-0 h-2.5 w-full text-[var(--accent)] opacity-40" />
             </span>
-            <br />
-            to real objects.
+            {" "}to real objects.
           </h1>
-
-          <p className="mx-auto mt-6 max-w-lg font-serif text-lg leading-relaxed text-[var(--muted)]">
-            A quick sketch on a napkin. A half-baked idea at 2am.
-            Here&rsquo;s what happens when you let it run.
+          <p className="mt-2 font-serif text-base text-[var(--muted)]">
+            See what others have brought to life — from napkin sketches to 3D-printed pieces.
           </p>
         </div>
       </section>
