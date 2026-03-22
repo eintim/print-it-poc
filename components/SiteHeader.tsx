@@ -13,7 +13,6 @@ const NAV_ITEMS_AUTHENTICATED = [
   { href: "/ideas", label: "My Ideas" },
   { href: "/orders", label: "My Orders" },
   { href: "/create", label: "Create" },
-  { href: "/about", label: "About" },
 ];
 
 const NAV_ITEMS_GUEST = [
@@ -39,9 +38,7 @@ export default function SiteHeader() {
     if (!isAuthenticated) return NAV_ITEMS_GUEST;
     const items = [...NAV_ITEMS_AUTHENTICATED];
     if (adminStatus?.isAdmin) {
-      const aboutIdx = items.findIndex((i) => i.href === "/about");
-      const idx = aboutIdx >= 0 ? aboutIdx : items.length;
-      items.splice(idx, 0, { href: "/admin", label: "Admin" });
+      items.push({ href: "/admin", label: "Admin" });
     }
     return items;
   }, [isAuthenticated, adminStatus?.isAdmin]);
