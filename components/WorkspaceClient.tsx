@@ -748,14 +748,11 @@ export default function WorkspaceClient({
                       </p>
 
                       <div className="animate-fade-up delay-3 mt-10 grid gap-4 sm:grid-cols-2 sm:gap-5">
-                        <button
-                          type="button"
-                          disabled={isRefining}
-                          onClick={() => attachmentInputRef.current?.click()}
-                          className="group relative flex w-full flex-col items-start gap-4 overflow-hidden rounded-2xl border border-[rgba(22,101,52,0.22)] bg-gradient-to-br from-white/90 to-[rgba(220,252,231,0.35)] p-6 text-left shadow-[0_12px_40px_rgba(22,101,52,0.06)] transition duration-300 hover:-translate-y-0.5 hover:border-[rgba(22,101,52,0.35)] hover:shadow-[0_18px_48px_rgba(22,101,52,0.1)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sage)] disabled:pointer-events-none disabled:opacity-45"
+                        <div
+                          className="group relative flex w-full flex-col items-start gap-4 overflow-hidden rounded-2xl border border-[rgba(22,101,52,0.22)] bg-gradient-to-br from-white/90 to-[rgba(220,252,231,0.35)] p-6 text-left shadow-[0_12px_40px_rgba(22,101,52,0.06)]"
                         >
                           <span
-                            className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-[var(--sage-soft)]/50 transition-transform duration-500 group-hover:scale-110"
+                            className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-[var(--sage-soft)]/50"
                             aria-hidden
                           />
                           <span className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-[rgba(22,101,52,0.2)] bg-white/80 text-[var(--sage)] shadow-sm">
@@ -783,7 +780,7 @@ export default function WorkspaceClient({
                               />
                             </svg>
                           </span>
-                          <span className="relative space-y-1.5">
+                          <span className="relative flex-1 space-y-1.5">
                             <span className="block font-serif text-lg font-semibold text-[var(--foreground)]">
                               Sketch or image
                             </span>
@@ -792,7 +789,12 @@ export default function WorkspaceClient({
                               the model from your image.
                             </span>
                           </span>
-                          <span className="relative mt-1 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--sage)]">
+                          <button
+                            type="button"
+                            disabled={isRefining}
+                            onClick={() => attachmentInputRef.current?.click()}
+                            className="relative mt-auto inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[rgba(22,101,52,0.25)] bg-white/80 px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider text-[var(--sage)] shadow-sm transition duration-200 hover:border-[rgba(22,101,52,0.5)] hover:bg-white hover:shadow-md active:scale-[0.97] disabled:pointer-events-none disabled:opacity-45"
+                          >
                             Choose file
                             <span
                               className="inline-block transition-transform duration-300 group-hover:translate-x-0.5"
@@ -800,16 +802,14 @@ export default function WorkspaceClient({
                             >
                               →
                             </span>
-                          </span>
-                        </button>
+                          </button>
+                        </div>
 
-                        <button
-                          type="button"
-                          onClick={() => setTextStartActive(true)}
-                          className="group relative flex w-full flex-col items-start gap-4 overflow-hidden rounded-2xl border border-[rgba(194,65,12,0.22)] bg-gradient-to-br from-white/95 to-[rgba(253,125,104,0.08)] p-6 text-left shadow-[0_12px_40px_rgba(194,65,12,0.07)] transition duration-300 hover:-translate-y-0.5 hover:border-[rgba(194,65,12,0.38)] hover:shadow-[0_18px_48px_rgba(194,65,12,0.12)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                        <div
+                          className="group relative flex w-full flex-col items-start gap-4 overflow-hidden rounded-2xl border border-[rgba(194,65,12,0.22)] bg-gradient-to-br from-white/95 to-[rgba(253,125,104,0.08)] p-6 text-left shadow-[0_12px_40px_rgba(194,65,12,0.07)]"
                         >
                           <span
-                            className="absolute -right-8 -top-10 h-28 w-28 rotate-12 rounded-3xl bg-[rgba(253,125,104,0.15)] transition-transform duration-500 group-hover:rotate-6 group-hover:scale-105"
+                            className="absolute -right-8 -top-10 h-28 w-28 rotate-12 rounded-3xl bg-[rgba(253,125,104,0.15)]"
                             aria-hidden
                           />
                           <span className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-[rgba(194,65,12,0.2)] bg-white/85 text-[var(--accent)] shadow-sm">
@@ -829,7 +829,7 @@ export default function WorkspaceClient({
                               />
                             </svg>
                           </span>
-                          <span className="relative space-y-1.5">
+                          <span className="relative flex-1 space-y-1.5">
                             <span className="block font-serif text-lg font-semibold text-[var(--foreground)]">
                               Start from text
                             </span>
@@ -838,7 +838,11 @@ export default function WorkspaceClient({
                               prompt. Add a reference image anytime with the image button.
                             </span>
                           </span>
-                          <span className="relative mt-1 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--accent)]">
+                          <button
+                            type="button"
+                            onClick={() => setTextStartActive(true)}
+                            className="relative mt-auto inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[rgba(194,65,12,0.25)] bg-white/85 px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider text-[var(--accent)] shadow-sm transition duration-200 hover:border-[rgba(194,65,12,0.5)] hover:bg-white hover:shadow-md active:scale-[0.97]"
+                          >
                             Continue
                             <span
                               className="inline-block transition-transform duration-300 group-hover:translate-x-0.5"
@@ -846,8 +850,8 @@ export default function WorkspaceClient({
                             >
                               →
                             </span>
-                          </span>
-                        </button>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
